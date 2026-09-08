@@ -1,0 +1,7 @@
+{
+  "name": "JobSplit - Split-View Job Board",
+  "description": "High-performance split-view SaaS job board with instant keyboard-navigable previews, TanStack Query, Zustand, and Command Palette.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
