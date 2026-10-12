@@ -1,0 +1,32 @@
+# ============================================================================
+# Talenti frontend — despliegue con Docker Compose
+#
+#   docker compose up -d --build      →  http://localhost:3000
+#
+# El frontend es un SPA estático servido por nginx; nginx actúa además de
+# proxy de la API (mismo origen para el navegador, sin CORS).
+#
+# API_UPSTREAM (host:puerto del backend FastAPI):
+#   - Backend en el host (BD_Bolsa_Trabajo con `docker compose up` en :8000):
+#       API_UPSTREAM=host.docker.internal:8000   (default; extra_hosts abajo)
+#   - Ambos stacks en la misma red de compose: usa el nombre del servicio,
+#     p. ej. `web:8000` (el servicio web del backend expone 8000).
+# ============================================================================
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: talenti-frontend:latest
+    container_name: talenti_frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    environment:
+      # Upstream del backend para el proxy de nginx (ver nginx.conf)
+      API_UPSTREAM: ${API_UPSTREAM:-host.docker.internal:8000}
+    extra_hosts:
+      # Permite que el contenedor alcance la API corriendo en el host (Linux);
+      # en Mac/Windows Docker Desktop ya existe este hostname.
+      - "host.docker.internal:host-gateway"
