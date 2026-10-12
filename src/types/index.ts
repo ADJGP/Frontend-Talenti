@@ -1,8 +1,22 @@
+// UI-facing domain model.
+//
+// Fields the current backend contract cannot provide yet are **optional** and
+// the UI hides their blocks when absent (never faked). See docs/PLAN_TRABAJO.md
+// §2 (principle 2) and sugerencias.md for the backend gaps behind them.
+
 export type WorkplaceType = 'All' | 'Remote' | 'Hybrid' | 'On-site';
 export type EmploymentType = 'Full-time' | 'Contract' | 'Part-time';
-export type Department = 'All' | 'Engineering' | 'Design' | 'Product' | 'Data & AI' | 'Marketing' | 'DevOps';
-export type ExperienceLevel = 'All' | 'Junior' | 'Mid-Level' | 'Senior' | 'Lead' | 'Staff';
 export type SortOption = 'match' | 'recent' | 'salary-high' | 'salary-low';
+
+/** Application lifecycle, matching the backend `ApplicationStatus` enum. */
+export type ApplicationStatus =
+  | 'submitted'
+  | 'in_review'
+  | 'interviewing'
+  | 'offered'
+  | 'hired'
+  | 'rejected'
+  | 'withdrawn';
 
 export interface HiringManager {
   name: string;
@@ -16,48 +30,56 @@ export interface Job {
   id: string;
   title: string;
   company: string;
+  companyId: string;
   companySlug: string;
   companyLogoBg: string;
   companyLogoText: string;
-  companyWebsite: string;
-  companySize: string;
-  headquarters: string;
+  categoryId: string | null;
+  categoryName: string | null;
   location: string;
-  workplaceType: 'Remote' | 'Hybrid' | 'On-site';
-  employmentType: EmploymentType;
-  department: 'Engineering' | 'Design' | 'Product' | 'Data & AI' | 'Marketing' | 'DevOps';
-  experienceLevel: 'Junior' | 'Mid-Level' | 'Senior' | 'Lead' | 'Staff';
+  workplaceType?: 'Remote' | 'Hybrid' | 'On-site';
+  employmentType?: EmploymentType;
   salaryMin: number;
   salaryMax: number;
   salaryCurrency: string;
-  matchScore: number;
-  matchBreakdown: {
+  status: string;
+  postedAt: string;
+  postedTimestamp: number;
+  publishedAt: string | null;
+  closesAt?: string | null;
+  cityId?: string | null;
+  description: string;
+  tagline: string;
+
+  // --- Not provided by the current backend contract (hidden when absent) ---
+  matchScore?: number;
+  matchBreakdown?: {
     skillsMatch: number;
     experienceMatch: number;
     salaryFit: number;
   };
-  matchHighlights: string[];
-  postedAt: string;
-  postedTimestamp: number;
+  matchHighlights?: string[];
+  experienceLevel?: string;
+  department?: string;
   featured?: boolean;
   urgentlyHiring?: boolean;
-  tagline: string;
-  description: string;
-  responsibilities: string[];
-  requirements: string[];
-  niceToHave: string[];
-  benefits: string[];
-  skills: string[];
-  hiringManager: HiringManager;
-  applicantsCount: number;
-  techStack: string[];
+  responsibilities?: string[];
+  requirements?: string[];
+  niceToHave?: string[];
+  benefits?: string[];
+  skills?: string[];
+  techStack?: string[];
+  hiringManager?: HiringManager;
+  applicantsCount?: number;
+  companyWebsite?: string;
+  companySize?: string;
+  headquarters?: string;
 }
 
 export interface JobFilters {
   search: string;
-  department: Department;
+  categoryId: string | null;
   workplaceType: WorkplaceType;
-  experienceLevel: ExperienceLevel;
   minSalary: number;
   sortBy: SortOption;
   onlySaved: boolean;
@@ -65,12 +87,14 @@ export interface JobFilters {
 }
 
 export interface ApplicationRecord {
-  jobId: string;
-  appliedAt: string;
-  fullName: string;
+  applicationId: string;
+  jobOfferId: string;
+  status: ApplicationStatus;
+  createdAt: string;
+  coverLetter: string | null;
+}
+
+export interface SessionUser {
+  id: string;
   email: string;
-  phone?: string;
-  resumeFileName: string;
-  coverNote?: string;
-  status: 'Reviewing' | 'Screening' | 'Interview' | 'Offered';
 }

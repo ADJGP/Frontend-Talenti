@@ -5,15 +5,25 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * Format a salary band, or return `''` when the offer discloses no salary at
+ * all (the backend allows `salary_min_cents`/`salary_max_cents` to be null, so
+ * callers must fall back to a "not disclosed" label instead of showing $0).
+ */
 export function formatSalary(min: number, max: number, currency: string = 'USD'): string {
-  const symbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : '£';
+  if (!min && !max) return '';
+  const symbols: Record<string, string> = {USD: '$', EUR: '€', GBP: '£', COP: 'COP$', MXN: 'MX$'};
+  const symbol = symbols[currency] ?? `${currency} `;
   const formatK = (val: number) => {
     if (val >= 1000) {
       return `${Math.round(val / 1000)}k`;
     }
     return val.toLocaleString();
   };
-  return `${symbol}${formatK(min)} - ${symbol}${formatK(max)} / yr`;
+  if (min && max && min !== max) {
+    return `${symbol}${formatK(min)} - ${symbol}${formatK(max)} / yr`;
+  }
+  return `${symbol}${formatK(max || min)} / yr`;
 }
 
 export function getMatchScoreColor(score: number): {

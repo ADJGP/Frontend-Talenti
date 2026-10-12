@@ -1,7 +1,6 @@
 {
-  "name": "JobSplit - Split-View Job Board",
-  "description": "High-performance split-view SaaS job board with instant keyboard-navigable previews, TanStack Query, Zustand, and Command Palette.",
+  "name": "Talenti — Bolsa de Trabajo",
+  "description": "Frontend de Talenti: bolsa de trabajo con vista dividida, autenticación, postulaciones end-to-end, perfil de candidato y analítica, integrado con la API FastAPI (BD_Bolsa_Trabajo).",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": []
 }
-

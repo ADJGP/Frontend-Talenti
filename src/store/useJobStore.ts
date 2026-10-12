@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { ApplicationRecord, JobFilters, Department, WorkplaceType, ExperienceLevel, SortOption } from '../types';
+import type { ApplicationRecord, JobFilters } from '../types';
 
 interface JobStoreState {
   // Navigation & View State
@@ -9,20 +9,21 @@ interface JobStoreState {
   isCommandPaletteOpen: boolean;
   isApplyModalOpen: boolean;
   isShortcutsModalOpen: boolean;
-  
+  isAuthOpen: boolean;
+
   // Theme State
   theme: 'light' | 'dark' | 'system';
-  
+
   // Language (i18n)
   language: 'es' | 'en';
-  
+
   // User interactions
   savedJobIds: string[];
   appliedJobs: Record<string, ApplicationRecord>;
-  
+
   // Filters
   filters: JobFilters;
-  
+
   // Actions
   setSelectedJobId: (id: string | null) => void;
   setActiveNav: (nav: string) => void;
@@ -30,50 +31,47 @@ interface JobStoreState {
   setCommandPaletteOpen: (open: boolean) => void;
   setApplyModalOpen: (open: boolean) => void;
   setShortcutsModalOpen: (open: boolean) => void;
+  setAuthOpen: (open: boolean) => void;
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
   setLanguage: (language: 'es' | 'en') => void;
   toggleSaveJob: (id: string) => void;
+  setAppliedJobs: (applications: ApplicationRecord[]) => void;
 
   applyToJob: (application: ApplicationRecord) => void;
   setFilters: (filters: Partial<JobFilters>) => void;
   resetFilters: () => void;
 }
 
+// Only filters the backend actually supports are exposed (see docs/PLAN_TRABAJO.md F2).
 const initialFilters: JobFilters = {
   search: '',
-  department: 'All',
+  categoryId: null,
   workplaceType: 'All',
-  experienceLevel: 'All',
   minSalary: 0,
-  sortBy: 'match',
+  sortBy: 'recent',
   onlySaved: false,
   onlyApplied: false,
 };
 
-// Safe localStorage helper
+const THEME_KEY = 'talenti_theme';
+const LANGUAGE_KEY = 'talenti_language';
+const SAVED_KEY = 'talenti_saved_jobs';
+const APPLIED_KEY = 'talenti_applied_jobs';
+
+// No seeded data: everything comes from the API (docs/PLAN_TRABAJO.md §1.3).
 const getInitialSaved = (): string[] => {
   try {
-    const data = localStorage.getItem('jobsplit_saved_jobs');
-    return data ? JSON.parse(data) : ['job-1', 'job-3'];
+    const data = localStorage.getItem(SAVED_KEY);
+    return data ? (JSON.parse(data) as string[]) : [];
   } catch {
-    return ['job-1', 'job-3'];
+    return [];
   }
 };
 
 const getInitialApplied = (): Record<string, ApplicationRecord> => {
   try {
-    const data = localStorage.getItem('jobsplit_applied_jobs');
-    return data ? JSON.parse(data) : {
-      'job-4': {
-        jobId: 'job-4',
-        appliedAt: 'Yesterday at 3:45 PM',
-        fullName: 'Alex Vance',
-        email: 'alex.vance@techinnovator.io',
-        resumeFileName: 'Alex_Vance_Senior_Staff_Resume_2026.pdf',
-        coverNote: 'Excited about your platform scalability vision!',
-        status: 'Screening',
-      }
-    };
+    const data = localStorage.getItem(APPLIED_KEY);
+    return data ? (JSON.parse(data) as Record<string, ApplicationRecord>) : {};
   } catch {
     return {};
   }
@@ -81,7 +79,7 @@ const getInitialApplied = (): Record<string, ApplicationRecord> => {
 
 const getInitialTheme = (): 'light' | 'dark' | 'system' => {
   try {
-    const t = localStorage.getItem('jobsplit_theme');
+    const t = localStorage.getItem(THEME_KEY);
     if (t === 'light' || t === 'dark' || t === 'system') return t;
     return 'dark'; // modern dark default preferred for sleek high-performance SaaS
   } catch {
@@ -91,9 +89,8 @@ const getInitialTheme = (): 'light' | 'dark' | 'system' => {
 
 const getInitialLanguage = (): 'es' | 'en' => {
   try {
-    const lang = localStorage.getItem('jobsplit_language');
+    const lang = localStorage.getItem(LANGUAGE_KEY);
     if (lang === 'es' || lang === 'en') return lang;
-    // Default to Spanish (es) or user preference
     return 'es';
   } catch {
     return 'es';
@@ -101,12 +98,13 @@ const getInitialLanguage = (): 'es' | 'en' => {
 };
 
 export const useJobStore = create<JobStoreState>((set) => ({
-  selectedJobId: 'job-1',
+  selectedJobId: null,
   activeNav: 'jobs',
   isMobileDetailOpen: false,
   isCommandPaletteOpen: false,
   isApplyModalOpen: false,
   isShortcutsModalOpen: false,
+  isAuthOpen: false,
   theme: getInitialTheme(),
   language: getInitialLanguage(),
   savedJobIds: getInitialSaved(),
@@ -119,43 +117,65 @@ export const useJobStore = create<JobStoreState>((set) => ({
   setCommandPaletteOpen: (open) => set({ isCommandPaletteOpen: open }),
   setApplyModalOpen: (open) => set({ isApplyModalOpen: open }),
   setShortcutsModalOpen: (open) => set({ isShortcutsModalOpen: open }),
-  
+  setAuthOpen: (open) => set({ isAuthOpen: open }),
+
   setTheme: (theme) => {
     try {
-      localStorage.setItem('jobsplit_theme', theme);
-    } catch {}
+      localStorage.setItem(THEME_KEY, theme);
+    } catch {
+      // ignore
+    }
     set({ theme });
   },
 
   setLanguage: (language) => {
     try {
-      localStorage.setItem('jobsplit_language', language);
-    } catch {}
+      localStorage.setItem(LANGUAGE_KEY, language);
+    } catch {
+      // ignore
+    }
     set({ language });
   },
 
   toggleSaveJob: (id) =>
-
     set((state) => {
       const isSaved = state.savedJobIds.includes(id);
       const newSaved = isSaved
         ? state.savedJobIds.filter((jobId) => jobId !== id)
         : [...state.savedJobIds, id];
       try {
-        localStorage.setItem('jobsplit_saved_jobs', JSON.stringify(newSaved));
-      } catch {}
+        localStorage.setItem(SAVED_KEY, JSON.stringify(newSaved));
+      } catch {
+        // ignore
+      }
       return { savedJobIds: newSaved };
+    }),
+
+  setAppliedJobs: (applications) =>
+    set(() => {
+      const next: Record<string, ApplicationRecord> = {};
+      for (const application of applications) {
+        next[application.jobOfferId] = application;
+      }
+      try {
+        localStorage.setItem(APPLIED_KEY, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return { appliedJobs: next };
     }),
 
   applyToJob: (application) =>
     set((state) => {
       const newApplied = {
         ...state.appliedJobs,
-        [application.jobId]: application,
+        [application.jobOfferId]: application,
       };
       try {
-        localStorage.setItem('jobsplit_applied_jobs', JSON.stringify(newApplied));
-      } catch {}
+        localStorage.setItem(APPLIED_KEY, JSON.stringify(newApplied));
+      } catch {
+        // ignore
+      }
       return { appliedJobs: newApplied, isApplyModalOpen: false };
     }),
 

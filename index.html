@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="en" class="h-full">
+<html lang="es" class="h-full">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>JobSplit - Split-View Job Board</title>
-    <meta name="description" content="High-performance split-view SaaS job board with instant keyboard-navigable previews, TanStack Query, Zustand, and Command Palette." />
-    <meta property="og:title" content="JobSplit - Split-View Job Board" />
-    <meta property="og:description" content="High-performance split-view SaaS job board with instant keyboard-navigable previews, TanStack Query, Zustand, and Command Palette." />
+    <title>Talenti — Bolsa de Trabajo</title>
+    <meta name="description" content="Talenti: bolsa de trabajo con vista dividida, postulaciones end-to-end, perfil de candidato y analítica de carrera." />
+    <meta property="og:title" content="Talenti — Bolsa de Trabajo" />
+    <meta property="og:description" content="Talenti: bolsa de trabajo con vista dividida, postulaciones end-to-end, perfil de candidato y analítica de carrera." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,7 +15,7 @@
     <script>
       (function() {
         try {
-          const theme = localStorage.getItem('jobsplit_theme') || 'dark';
+          const theme = localStorage.getItem('talenti_theme') || 'dark';
           const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
           if (isDark) {
             document.documentElement.classList.add('dark');
@@ -33,4 +33,3 @@
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

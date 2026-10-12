@@ -8,8 +8,10 @@ import {
   Keyboard,
   Sparkles,
   Search,
+  LogOut,
 } from 'lucide-react';
 import { useJobStore } from '../../store/useJobStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { useTranslation } from '../../i18n';
 import { cn } from '../../utils';
 
@@ -23,13 +25,12 @@ export function Sidebar() {
   const appliedJobs = useJobStore((state) => state.appliedJobs);
   const appliedCount = Object.keys(appliedJobs).length;
 
+  const user = useAuthStore((state) => state.user);
+  const status = useAuthStore((state) => state.status);
+  const logout = useAuthStore((state) => state.logout);
+
   const navItems = [
-    {
-      id: 'jobs',
-      label: t.navJobs,
-      icon: Briefcase,
-      badge: '8',
-    },
+    { id: 'jobs', label: t.navJobs, icon: Briefcase, badge: undefined as string | undefined },
     {
       id: 'applications',
       label: t.navApplications,
@@ -42,23 +43,13 @@ export function Sidebar() {
       icon: Bookmark,
       badge: savedJobIds.length > 0 ? String(savedJobIds.length) : undefined,
     },
-    {
-      id: 'dashboard',
-      label: t.navDashboard,
-      icon: LayoutDashboard,
-    },
-    {
-      id: 'profile',
-      label: t.navProfile,
-      icon: User,
-    },
-    {
-      id: 'settings',
-      label: t.navSettings,
-      icon: Settings,
-    },
+    { id: 'dashboard', label: t.navDashboard, icon: LayoutDashboard, badge: undefined },
+    { id: 'profile', label: t.navProfile, icon: User, badge: undefined },
+    { id: 'settings', label: t.navSettings, icon: Settings, badge: undefined },
   ];
 
+  const identity = user?.email || t.authGuest;
+  const initial = (user?.email || '?')[0]!.toUpperCase();
 
   return (
     <aside className="hidden md:flex flex-col items-center justify-between w-16 lg:w-18 shrink-0 border-r border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md py-4 z-20 select-none">
@@ -67,10 +58,10 @@ export function Sidebar() {
         <button
           onClick={() => setActiveNav('jobs')}
           className="group relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white shadow-md shadow-indigo-500/20 hover:scale-105 active:scale-95 transition-all"
-          title="JobSplit"
+          title="Talenti"
         >
           <Sparkles className="h-5 w-5 text-white animate-pulse" />
-          <span className="sr-only">JobSplit</span>
+          <span className="sr-only">Talenti</span>
         </button>
 
         {/* Quick Search Shortcut Trigger */}
@@ -99,7 +90,12 @@ export function Sidebar() {
                 )}
                 title={item.label}
               >
-                <Icon className={cn('h-5 w-5 transition-transform group-hover:scale-110', isActive && 'stroke-[2.2]')} />
+                <Icon
+                  className={cn(
+                    'h-5 w-5 transition-transform group-hover:scale-110',
+                    isActive && 'stroke-[2.2]'
+                  )}
+                />
 
                 {/* Left active marker indicator */}
                 {isActive && (
@@ -134,18 +130,36 @@ export function Sidebar() {
           <Keyboard className="h-4 w-4" />
         </button>
 
-        {/* User Avatar */}
-        <div className="relative group cursor-pointer" onClick={() => setActiveNav('profile')}>
-          <div className="h-9 w-9 rounded-full ring-2 ring-indigo-500/30 overflow-hidden bg-slate-200 dark:bg-slate-700">
-            <img
-              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=128&q=80"
-              alt="Alex Vance"
-              className="h-full w-full object-cover"
-              referrerPolicy="no-referrer"
-            />
+        {/* Session identity */}
+        {status === 'authenticated' ? (
+          <div className="relative group flex flex-col items-center">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white ring-2 ring-indigo-500/30">
+              {initial}
+            </div>
+            <div className="pointer-events-none absolute bottom-full mb-2 hidden rounded-md bg-slate-900 px-2.5 py-1 text-xs font-medium text-white shadow-lg group-hover:block dark:bg-slate-100 dark:text-slate-900 z-50 whitespace-nowrap">
+              {t.authSignedInAs} {identity}
+            </div>
           </div>
-          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
-        </div>
+        ) : (
+          <button
+            onClick={() => setActiveNav('profile')}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-dashed border-slate-300 text-slate-400 dark:border-slate-700"
+            title={t.authSignIn}
+          >
+            <User className="h-4 w-4" />
+          </button>
+        )}
+
+        {/* Sign out */}
+        {status === 'authenticated' && (
+          <button
+            onClick={() => void logout()}
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:text-rose-400 dark:hover:bg-rose-950/40 transition-colors"
+            title={t.authSignOut}
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
+        )}
       </div>
     </aside>
   );

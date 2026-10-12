@@ -2,19 +2,15 @@ import { useState, useMemo, useEffect, useRef, type KeyboardEvent } from 'react'
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Search,
-  Briefcase,
-  Sparkles,
-  Command,
   ArrowRight,
   Sun,
   Moon,
   Bookmark,
-  CheckCircle,
   MapPin,
   X,
 } from 'lucide-react';
 import { useJobStore } from '../../store/useJobStore';
-import { MOCK_JOBS } from '../../services/mockJobs';
+import { useJobs } from '../../hooks/useJobs';
 import { getMatchScoreColor } from '../../utils';
 import type { Job } from '../../types';
 
@@ -27,6 +23,10 @@ export function CommandPalette() {
   const resetFilters = useJobStore((state) => state.resetFilters);
   const theme = useJobStore((state) => state.theme);
   const setTheme = useJobStore((state) => state.setTheme);
+
+  // Real offers loaded from GET /job-offers (same query the feed uses).
+  const { data } = useJobs();
+  const jobs = useMemo(() => data?.jobs ?? [], [data]);
 
   const [search, setSearch] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -52,16 +52,6 @@ export function CommandPalette() {
         execute: () => {
           setActiveNav('jobs');
           setFilters({ workplaceType: 'Remote' });
-        },
-      },
-      {
-        id: 'action-staff',
-        title: 'Filter: Staff & Lead Roles',
-        category: 'Quick Filter',
-        icon: Briefcase,
-        execute: () => {
-          setActiveNav('jobs');
-          setFilters({ experienceLevel: 'Staff' });
         },
       },
       {
@@ -94,18 +84,20 @@ export function CommandPalette() {
     ];
   }, [theme, setActiveNav, setFilters, resetFilters, setTheme]);
 
-  // Matching jobs based on query
+  // Matching jobs based on query (over the offers currently loaded from the API)
   const matchingJobs = useMemo(() => {
-    if (!search.trim()) return MOCK_JOBS.slice(0, 5);
+    if (!search.trim()) return jobs.slice(0, 5);
     const q = search.toLowerCase();
-    return MOCK_JOBS.filter(
-      (job) =>
-        job.title.toLowerCase().includes(q) ||
-        job.company.toLowerCase().includes(q) ||
-        job.skills.some((s) => s.toLowerCase().includes(q)) ||
-        job.location.toLowerCase().includes(q)
-    ).slice(0, 6);
-  }, [search]);
+    return jobs
+      .filter(
+        (job) =>
+          job.title.toLowerCase().includes(q) ||
+          job.company.toLowerCase().includes(q) ||
+          (job.skills ?? []).some((s) => s.toLowerCase().includes(q)) ||
+          job.location.toLowerCase().includes(q)
+      )
+      .slice(0, 6);
+  }, [jobs, search]);
 
   // Combined items for keyboard navigation
   const allItems = useMemo(() => {
@@ -178,7 +170,7 @@ export function CommandPalette() {
                 setSelectedIndex(0);
               }}
               onKeyDown={handleKeyDown}
-              placeholder="Search jobs, skills (React, TypeScript), companies, or actions..."
+              placeholder="Search jobs, skills, companies, or actions..."
               className="w-full bg-transparent text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none"
             />
             <div className="flex items-center gap-1 font-mono text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
@@ -203,7 +195,8 @@ export function CommandPalette() {
                   const isSelected = idx === selectedIndex;
                   if (item.type === 'job') {
                     const job = item.data;
-                    const matchStyle = getMatchScoreColor(job.matchScore);
+                    const matchStyle =
+                      job.matchScore !== undefined ? getMatchScoreColor(job.matchScore) : null;
                     return (
                       <div
                         key={job.id}
@@ -236,11 +229,13 @@ export function CommandPalette() {
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0 ml-3">
-                          <span
-                            className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold ${matchStyle.badgeBg} ${matchStyle.badgeText}`}
-                          >
-                            {job.matchScore}%
-                          </span>
+                          {matchStyle && (
+                            <span
+                              className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold ${matchStyle.badgeBg} ${matchStyle.badgeText}`}
+                            >
+                              {job.matchScore}%
+                            </span>
+                          )}
                           <ArrowRight className="h-3.5 w-3.5 text-slate-400" />
                         </div>
                       </div>

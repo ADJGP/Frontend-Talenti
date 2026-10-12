@@ -1,7 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useJobs, useJobDetail } from '../../hooks/useJobs';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useJobStore } from '../../store/useJobStore';
+import { useTranslation } from '../../i18n';
+import { mergeJobs } from '../../services/jobAdapter';
 import { FilterBar } from './FilterBar';
 import { ListCard } from './ListCard';
 import { DetailsView } from './DetailsView';
@@ -11,13 +13,14 @@ import { Briefcase, AlertCircle } from 'lucide-react';
 import { Button } from '../ui/button';
 
 export function JobDashboard() {
+  const { t } = useTranslation();
   const { data, isLoading, error, refetch } = useJobs();
   const selectedJobId = useJobStore((state) => state.selectedJobId);
   const setSelectedJobId = useJobStore((state) => state.setSelectedJobId);
   const setMobileDetailOpen = useJobStore((state) => state.setMobileDetailOpen);
   const resetFilters = useJobStore((state) => state.resetFilters);
 
-  const jobs = useMemo(() => data?.jobs || [], [data]);
+  const jobs = useMemo(() => data?.jobs ?? [], [data]);
 
   // Hook up keyboard shortcuts: J, K, A, S, Cmd+K, ?
   useKeyboardShortcuts({ jobs });
@@ -28,10 +31,19 @@ export function JobDashboard() {
     return jobs.find((j) => j.id === selectedJobId) || jobs[0];
   }, [jobs, selectedJobId]);
 
-  // Fetch full detail for the active job
+  // Keep the selection valid when the list changes (filters, page, backend data).
+  useEffect(() => {
+    if (activeJob && activeJob.id !== selectedJobId) {
+      setSelectedJobId(activeJob.id);
+    }
+  }, [activeJob, selectedJobId, setSelectedJobId]);
+
+  // Fetch the full detail for the active offer (adds modality/description).
   const { data: detailJob, isLoading: isDetailLoading } = useJobDetail(
     activeJob ? activeJob.id : null
   );
+
+  const shownJob = activeJob ? mergeJobs(activeJob, detailJob) : null;
 
   const handleSelectJob = (id: string) => {
     setSelectedJobId(id);
@@ -46,7 +58,7 @@ export function JobDashboard() {
       {/* Left Column: Job List & Filters */}
       <section className="flex flex-col w-full lg:w-[420px] xl:w-[460px] shrink-0 border-r border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/40 h-full overflow-hidden">
         {/* Filter controls */}
-        <FilterBar totalCount={jobs.length} />
+        <FilterBar totalCount={data?.total ?? jobs.length} facets={data?.facets} />
 
         {/* Scrollable Job Cards List */}
         <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2.5">
@@ -76,10 +88,13 @@ export function JobDashboard() {
             <div className="p-8 text-center space-y-3">
               <AlertCircle className="h-8 w-8 text-rose-500 mx-auto" />
               <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-                Failed to load job listings
+                {t.commonErrorTitle}
+              </p>
+              <p className="text-xs text-slate-500">
+                {error instanceof Error ? error.message : ''}
               </p>
               <Button size="sm" onClick={() => refetch()}>
-                Retry Fetch
+                {t.commonRetry}
               </Button>
             </div>
           ) : jobs.length === 0 ? (
@@ -88,13 +103,11 @@ export function JobDashboard() {
                 <Briefcase className="h-6 w-6" />
               </div>
               <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-                No matching opportunities found
+                {t.noJobsFound}
               </h4>
-              <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                Try loosening your filters or resetting to view all vetted positions.
-              </p>
+              <p className="text-xs text-slate-500 max-w-xs mx-auto">{t.noJobsSub}</p>
               <Button size="sm" variant="outline" onClick={resetFilters}>
-                Clear All Filters
+                {t.clearFiltersBtn}
               </Button>
             </div>
           ) : (
@@ -112,11 +125,11 @@ export function JobDashboard() {
 
       {/* Right Column: Dynamic Sticky Details Panel (Desktop) */}
       <section className="hidden lg:flex flex-1 h-full flex-col overflow-hidden bg-white dark:bg-slate-900/60">
-        <DetailsView job={detailJob || activeJob} isLoading={isDetailLoading} />
+        <DetailsView job={shownJob} isLoading={isDetailLoading} />
       </section>
 
       {/* Mobile Drawer (Responsive Overlay on Phone & Tablet) */}
-      <MobileDetailDrawer job={detailJob || activeJob} isLoading={isDetailLoading} />
+      <MobileDetailDrawer job={shownJob} isLoading={isDetailLoading} />
     </div>
   );
 }

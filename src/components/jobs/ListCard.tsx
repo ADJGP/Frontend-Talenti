@@ -1,13 +1,6 @@
 import type { MouseEvent } from 'react';
 import { motion } from 'motion/react';
-import {
-  MapPin,
-  Bookmark,
-  Sparkles,
-  CheckCircle2,
-  Building2,
-  Clock,
-} from 'lucide-react';
+import { MapPin, Bookmark, Sparkles, CheckCircle2, Clock } from 'lucide-react';
 import { useJobStore } from '../../store/useJobStore';
 import { useTranslation } from '../../i18n';
 import { formatSalary, getMatchScoreColor, cn } from '../../utils';
@@ -27,8 +20,9 @@ export function ListCard({ job, isSelected, onSelect }: ListCardProps) {
   const appliedJobs = useJobStore((state) => state.appliedJobs);
   const isSaved = savedJobIds.includes(job.id);
   const application = appliedJobs[job.id];
-  const matchStyle = getMatchScoreColor(job.matchScore);
-
+  const matchStyle = job.matchScore !== undefined ? getMatchScoreColor(job.matchScore) : null;
+  const salaryLabel = formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency);
+  const skills = job.skills ?? [];
 
   const handleClick = () => {
     // Check for native View Transitions API
@@ -46,7 +40,6 @@ export function ListCard({ job, isSelected, onSelect }: ListCardProps) {
     e.stopPropagation();
     toggleSaveJob(job.id);
   };
-
 
   return (
     <motion.div
@@ -119,34 +112,49 @@ export function ListCard({ job, isSelected, onSelect }: ListCardProps) {
 
       {/* Middle: Salary & Match Badge */}
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800/80 pt-2.5">
-        <div className="text-xs font-semibold text-slate-900 dark:text-slate-100">
-          {formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency)}
-        </div>
-
-        {/* Match Score Badge with Color Indicator */}
         <div
           className={cn(
-            'inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-semibold',
-            matchStyle.badgeBg,
-            matchStyle.badgeText,
-            matchStyle.badgeBorder
+            'text-xs font-semibold',
+            salaryLabel
+              ? 'text-slate-900 dark:text-slate-100'
+              : 'text-slate-400 dark:text-slate-500 font-normal italic'
           )}
         >
-          <Sparkles className="h-3 w-3 shrink-0" />
-          <span>{job.matchScore}% {t.matchLabel}</span>
+          {salaryLabel || t.salaryUndisclosed}
         </div>
+
+        {/* Match Score Badge — only when the backend provides a score */}
+        {matchStyle && (
+          <div
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-semibold',
+              matchStyle.badgeBg,
+              matchStyle.badgeText,
+              matchStyle.badgeBorder
+            )}
+          >
+            <Sparkles className="h-3 w-3 shrink-0" />
+            <span>
+              {job.matchScore}% {t.matchLabel}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Footer: Tags & Status */}
       <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-slate-400">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 font-medium text-slate-600 dark:text-slate-300">
-            {job.workplaceType}
-          </span>
-          <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 font-medium text-slate-600 dark:text-slate-300">
-            {job.experienceLevel}
-          </span>
-          {job.skills.slice(0, 2).map((skill) => (
+          {job.workplaceType && (
+            <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 font-medium text-slate-600 dark:text-slate-300">
+              {job.workplaceType}
+            </span>
+          )}
+          {job.experienceLevel && (
+            <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 font-medium text-slate-600 dark:text-slate-300">
+              {job.experienceLevel}
+            </span>
+          )}
+          {skills.slice(0, 2).map((skill) => (
             <span
               key={skill}
               className="rounded-md bg-slate-100/70 dark:bg-slate-800/60 px-1.5 py-0.5 text-[10px] text-slate-500 dark:text-slate-400 hidden sm:inline"
@@ -163,7 +171,6 @@ export function ListCard({ job, isSelected, onSelect }: ListCardProps) {
               {t.appliedBadge}
             </span>
           ) : (
-
             <span className="flex items-center gap-1 text-[10px] text-slate-400">
               <Clock className="h-2.5 w-2.5" />
               {job.postedAt}

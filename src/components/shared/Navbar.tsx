@@ -1,5 +1,6 @@
-import { Search, Sparkles, Command, Bookmark, Keyboard } from 'lucide-react';
+import { Search, Sparkles, Command, Bookmark, Keyboard, LogIn } from 'lucide-react';
 import { useJobStore } from '../../store/useJobStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { ThemeToggle } from './ThemeToggle';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { useTranslation } from '../../i18n';
@@ -7,6 +8,7 @@ import { Badge } from '../ui/badge';
 
 export function Navbar() {
   const { t } = useTranslation();
+  const authStatus = useAuthStore((state) => state.status);
   const setCommandPaletteOpen = useJobStore((state) => state.setCommandPaletteOpen);
   const setShortcutsModalOpen = useJobStore((state) => state.setShortcutsModalOpen);
   const savedJobIds = useJobStore((state) => state.savedJobIds);
@@ -41,7 +43,7 @@ export function Navbar() {
             <Sparkles className="h-4 w-4" />
           </div>
           <span className="font-bold tracking-tight text-slate-900 dark:text-white text-base">
-            JobSplit
+            Talenti
           </span>
         </div>
 
@@ -116,6 +118,17 @@ export function Navbar() {
             </span>
           )}
         </button>
+
+        {/* Sign-in CTA while anonymous */}
+        {authStatus !== 'authenticated' && (
+          <button
+            onClick={() => setActiveNav('profile')}
+            className="flex h-8 items-center gap-1.5 rounded-lg bg-indigo-600 px-3 text-xs font-semibold text-white transition-colors hover:bg-indigo-700"
+          >
+            <LogIn className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{t.authSignIn}</span>
+          </button>
+        )}
 
         {/* Language Switcher (ES / EN) */}
         <LanguageSwitcher />
