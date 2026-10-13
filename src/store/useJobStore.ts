@@ -21,6 +21,11 @@ interface JobStoreState {
   savedJobIds: string[];
   appliedJobs: Record<string, ApplicationRecord>;
 
+  // Recruiter surface (F7): the acting company. The backend has no "my
+  // companies" endpoint yet, so the recruiter picks/creates one and we keep it
+  // locally (see sugerencias.md).
+  recruiterCompanyId: string | null;
+
   // Filters
   filters: JobFilters;
 
@@ -36,6 +41,7 @@ interface JobStoreState {
   setLanguage: (language: 'es' | 'en') => void;
   toggleSaveJob: (id: string) => void;
   setAppliedJobs: (applications: ApplicationRecord[]) => void;
+  setRecruiterCompanyId: (id: string | null) => void;
 
   applyToJob: (application: ApplicationRecord) => void;
   setFilters: (filters: Partial<JobFilters>) => void;
@@ -57,6 +63,7 @@ const THEME_KEY = 'talenti_theme';
 const LANGUAGE_KEY = 'talenti_language';
 const SAVED_KEY = 'talenti_saved_jobs';
 const APPLIED_KEY = 'talenti_applied_jobs';
+const RECRUITER_COMPANY_KEY = 'talenti_recruiter_company';
 
 // No seeded data: everything comes from the API (docs/PLAN_TRABAJO.md §1.3).
 const getInitialSaved = (): string[] => {
@@ -74,6 +81,14 @@ const getInitialApplied = (): Record<string, ApplicationRecord> => {
     return data ? (JSON.parse(data) as Record<string, ApplicationRecord>) : {};
   } catch {
     return {};
+  }
+};
+
+const getInitialRecruiterCompany = (): string | null => {
+  try {
+    return localStorage.getItem(RECRUITER_COMPANY_KEY);
+  } catch {
+    return null;
   }
 };
 
@@ -109,6 +124,7 @@ export const useJobStore = create<JobStoreState>((set) => ({
   language: getInitialLanguage(),
   savedJobIds: getInitialSaved(),
   appliedJobs: getInitialApplied(),
+  recruiterCompanyId: getInitialRecruiterCompany(),
   filters: initialFilters,
 
   setSelectedJobId: (id) => set({ selectedJobId: id }),
@@ -135,6 +151,16 @@ export const useJobStore = create<JobStoreState>((set) => ({
       // ignore
     }
     set({ language });
+  },
+
+  setRecruiterCompanyId: (id) => {
+    try {
+      if (id) localStorage.setItem(RECRUITER_COMPANY_KEY, id);
+      else localStorage.removeItem(RECRUITER_COMPANY_KEY);
+    } catch {
+      // ignore
+    }
+    set({ recruiterCompanyId: id });
   },
 
   toggleSaveJob: (id) =>

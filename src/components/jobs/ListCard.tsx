@@ -149,6 +149,11 @@ export function ListCard({ job, isSelected, onSelect }: ListCardProps) {
               {job.workplaceType}
             </span>
           )}
+          {job.employmentType && (
+            <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 font-medium text-slate-600 dark:text-slate-300">
+              {job.employmentType}
+            </span>
+          )}
           {job.experienceLevel && (
             <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 font-medium text-slate-600 dark:text-slate-300">
               {job.experienceLevel}

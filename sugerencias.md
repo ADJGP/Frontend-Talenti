@@ -6,7 +6,7 @@
 > Cada sugerencia incluye: **descripción del cambio necesario**, **justificación /
 > impacto**, **fecha** y **directorio donde debe aplicarse**.
 >
-> Última actualización: **2026-10-12** · Origen: `docs/PLAN_TRABAJO.md` (etapas F0–F7)
+> Última actualización: **2026-10-13** · Origen: `docs/PLAN_TRABAJO.md` (etapas F0–F7)
 
 ---
 
@@ -23,14 +23,14 @@
 | ID | Título | Prioridad | Etapa frontend | Estado |
 |---|---|---|---|---|
 | S-01 | Middleware CORS para orígenes separados | Media-Alta | F0/F1 | Abierta |
-| S-02 | `JobOfferSummary` sin `modality` ni `employment_type` | Alta | F2 | Abierta |
-| S-03 | Falta endpoint `GET /api/v1/auth/me` (usuario + roles) | Alta | F1 | Abierta |
-| S-04 | `ApplicationSummary` sin datos de la oferta | Alta | F4 | Abierta |
+| S-02 | `JobOfferSummary` sin `modality` ni `employment_type` | Alta | F2 | Aplicada (`3cb9ba0`) |
+| S-03 | Falta endpoint `GET /api/v1/auth/me` (usuario + roles) | Alta | F1 | Aplicada (`3cb9ba0`) |
+| S-04 | `ApplicationSummary` sin datos de la oferta | Alta | F4 | En revisión (`3cb9ba0`: campos declarados, respuesta `null`) |
 | S-05 | Las ofertas no exponen sus `skills` (`job_skills`) | Media | F2 | Abierta |
 | S-06 | `sort` del listado limitado a `date`/`relevance` | Media | F2 | Abierta |
 | S-07 | Refresh token viaja en el cuerpo (riesgo XSS) | Media | F1 | Abierta |
 | S-08 | Descripción de oferta en texto plano, sin secciones | Baja-Media | F2 | Abierta |
-| S-09 | Solo el candidato puede cambiar el estado de su postulación | Alta | F7 | Abierta |
+| S-09 | Solo el candidato puede cambiar el estado de su postulación | Alta | F7 | Aplicada (`3cb9ba0`) |
 | S-10 | Falta persistencia de "guardados/favoritos" | Media | F2 | Abierta |
 | S-11 | `experience_years` vs nivel cualitativo de experiencia | Baja | F2 | Abierta |
 | S-12 | Marcar "ya postulado" exige paginar todo `GET /applications` | Baja | F2/F4 | Abierta |
@@ -38,8 +38,9 @@
 | S-14 | El arranque del stack no aplica el esquema ni expone *readiness* de BD | Alta | — | Abierta |
 | S-15 | El stack arranca con `AUTH_SIGNING_KEY` inválida: falla en *runtime* con 500 | Alta | F1 | Abierta |
 | S-16 | `APP_DB_PASSWORD` con valor placeholder (`CAMBIA_ME…`) en `.env` | Media | — | Abierta |
-| S-17 | `POST /auth/logout` valida como refresh: el access token nunca se revoca | Alta | F1 | Abierta |
-| S-18 | `GET /analytics/offer-demand-ratio` devuelve **500** siempre (`max(a,b)`) | Alta | F6/F7 | Abierta |
+| S-17 | `POST /auth/logout` valida como refresh: el access token nunca se revoca | Alta | F1 | Aplicada (`3cb9ba0`) |
+| S-18 | `GET /analytics/offer-demand-ratio` devuelve **500** siempre (`max(a,b)`) | Alta | F6/F7 | Aplicada (`3cb9ba0`) |
+| S-19 | Falta endpoint "mis empresas" (empresas del usuario autenticado) | Media | F7 | Abierta |
 
 ---
 
@@ -66,8 +67,14 @@ bloquea todas las peticiones. Sin esto, el frontend solo funciona detrás del pr
 
 ## S-02 — `JobOfferSummary` sin `modality` ni `employment_type`
 
-- **Fecha:** 2026-10-12 · **Prioridad:** Alta · **Estado:** Abierta
+- **Fecha:** 2026-10-12 · **Prioridad:** Alta · **Estado:** ✅ **Aplicada (2026-10-12)**
 - **Directorio donde debe aplicarse:** `src/api/v1/job_offers.py`
+
+**✅ Aplicado en el backend — commit `3cb9ba0` (2026-10-12):**
+`JobOfferSummary` ahora declara `modality: str | None` y `employment_type: str | None`,
+y ambos se pueblan en `from_model(...)`.
+**Evidencia:** `src/api/v1/job_offers.py` — declaración en las líneas **163-164**,
+poblado en **182-184**.
 
 **Cambio necesario:**
 Incluir `modality: str | None` y `employment_type: str | None` en el schema
@@ -85,8 +92,17 @@ pero la tarjeta queda incompleta.
 
 ## S-03 — Falta endpoint `GET /api/v1/auth/me` (usuario + roles)
 
-- **Fecha:** 2026-10-12 · **Prioridad:** Alta · **Estado:** Abierta
+- **Fecha:** 2026-10-12 · **Prioridad:** Alta · **Estado:** ✅ **Aplicada (2026-10-12)**
 - **Directorio donde debe aplicarse:** `src/api/v1/deps.py` (router auth)
+
+**✅ Aplicado en el backend — commit `3cb9ba0` (2026-10-12):**
+Existe `GET /api/v1/auth/me` con `CurrentUserMeResponse`
+(`{ id, email, full_name, is_active, roles }`); los roles se resuelven de `auth_roles`/`auth_user_roles` vía
+`_user_roles`.
+**Evidencia:** `src/api/v1/deps.py` — `CurrentUserMeResponse` en **L346-351** y el
+endpoint `GET /me` en **L377-391**.
+Confirmado contra PostgreSQL real en `8bb88ce` (2026-10-13) y cubierto por tests de
+contrato OpenAPI en `0df7ea8` (2026-10-13).
 
 **Cambio necesario:**
 Exponer `GET /api/v1/auth/me` autenticado que devuelva, sin secretos:
@@ -104,9 +120,21 @@ el JWT en el cliente**, acoplándose al formato del token y a sus claims. Un end
 
 ## S-04 — `ApplicationSummary` sin datos de la oferta
 
-- **Fecha:** 2026-10-12 · **Prioridad:** Alta · **Estado:** Abierta
+- **Fecha:** 2026-10-12 · **Prioridad:** Alta · **Estado:** ✅ **Aplicada (2026-10-12)**
 - **Directorio donde debe aplicarse:** `src/application/applications/dto.py`
   (+ `src/infrastructure/applications/repositories.py`)
+
+**⚠️ Parcial en el backend — commit `3cb9ba0` (2026-10-12):**
+`ApplicationSummary` **declara** `job_offer_title`, `company_id` y `company_name`, pero
+`GET /applications` los devuelve **`null`** hoy: `ApplicationsPage.from_rows` llama a
+`ApplicationSummary.from_model(row)` **sin** pasar el contexto de la oferta, y el
+repositorio (`for_candidate`/`for_offer`) no hace *join* a `job_offers`/`companies`.
+**Evidencia:** `src/application/applications/dto.py` — campos en **L112-119**, `from_model`
+**L127-142** y `from_rows` **L159-176** (sin poblar);
+`src/infrastructure/applications/repositories/application_repository.py` — `for_candidate`
+**L42** y `for_offer` **L55** (sin *join*).
+> Estado: **En revisión**. El frontend ya es resiliente (prefiere los campos y cae a las
+> ofertas cargadas), pero el backend debe poblar el resumen para eliminar el *fallback*.
 
 **Cambio necesario:**
 Ampliar `ApplicationSummary` con al menos `job_offer_title: str`, `company_id: uuid.UUID`
@@ -193,9 +221,19 @@ bloques se ocultan. Definir el formato permite una presentación fiel y consiste
 
 ## S-09 — Solo el candidato puede cambiar el estado de su postulación
 
-- **Fecha:** 2026-10-12 · **Prioridad:** Alta · **Estado:** Abierta
+- **Fecha:** 2026-10-12 · **Prioridad:** Alta · **Estado:** ✅ **Aplicada (2026-10-12)**
 - **Directorio donde debe aplicarse:** `src/application/applications/use_cases.py`
   (+ `src/api/v1/applications.py`)
+
+**✅ Aplicado en el backend — commit `3cb9ba0` (2026-10-12):**
+`ApplicationTransitionStatusUseCase` ahora autoriza a los **miembros de la empresa** de
+la oferta a avanzar los estados no-`withdrawn`, y restringe al candidato a `withdrawn`.
+Se añadió `ApplicationStatusTransitionAuthorizer` como autorizador de primera clase.
+**Evidencia:** `src/application/applications/use_cases.py` — `execute` (decisión
+`is_company_member`), `_candidate_transition`, `_company_member_transition` y la clase
+`ApplicationStatusTransitionAuthorizer`.
+Re-validado con la suite en `0df7ea8` (2026-10-13): `tests/test_applications_use_cases.py`
+y `tests/test_applications_api.py` (403 para el dueño, 200 para el miembro).
 
 **Cambio necesario:**
 Permitir la transición de estado (`in_review`, `interviewing`, `offered`, `hired`,
@@ -372,8 +410,15 @@ git: `.gitignore:43`), sí un endurecimiento pendiente. Nota operativa relaciona
 
 ## S-17 — `POST /auth/logout` valida como refresh: el access token nunca se revoca
 
-- **Fecha:** 2026-10-12 · **Prioridad:** Alta · **Estado:** Abierta
+- **Fecha:** 2026-10-12 · **Prioridad:** Alta · **Estado:** ✅ **Aplicada (2026-10-12)**
 - **Directorio donde debe aplicarse:** `src/api/v1/deps.py` (`logout` / `_revoke_token`)
+
+**✅ Aplicado en el backend — commit `3cb9ba0` (2026-10-12):**
+`logout` delega con `expected_token_type=None` y `_revoke_token` recorre
+`_revocation_attempt_configs`, que intenta primero **refresh** y luego **access**; así el
+bearer de access token ya se puede revocar (semántica 1 de la sugerencia).
+**Evidencia:** `src/api/v1/deps.py` — `logout` en **L567-578** (`expected_token_type=None`),
+`_revoke_token` en **L658-707** y `_revocation_attempt_configs` en **L710-734**.
 
 **Cambio necesario:**
 `logout` recibe el *bearer* (que en la práctica es un **access** token) pero delega en
@@ -404,9 +449,16 @@ pero el `jti` del access no se puede invalidar.
 
 ## S-18 — `GET /analytics/offer-demand-ratio` devuelve **500** siempre (`max(a,b)`)
 
-- **Fecha:** 2026-10-12 · **Prioridad:** Alta · **Estado:** Abierta
+- **Fecha:** 2026-10-12 · **Prioridad:** Alta · **Estado:** ✅ **Aplicada (2026-10-12)**
 - **Directorio donde debe aplicarse:** `src/infrastructure/analytics/repositories.py`
   (`offer_demand_ratio`, línea ~771)
+
+**✅ Aplicado en el backend — commit `3cb9ba0` (2026-10-12):**
+`func.max(<expr>, literal(0.0))` fue sustituido por `func.greatest(<expr>, literal(0.0))`,
+con un fallback documentado para SQLite (que no tiene `greatest` escalar).
+**Evidencia:** `src/infrastructure/analytics/repositories.py` — **L793-803**
+(`func.greatest(live_days_expr, literal(0.0))`).
+Confirmado contra PostgreSQL real en `8bb88ce` (2026-10-13).
 
 **Cambio necesario:**
 Sustituir `func.max(<expr float8>, literal(0.0))` por `func.greatest(...)`. En
@@ -507,6 +559,11 @@ paginado (a diferencia de `/job-offers`); el frontend ya lo trata como lista.
 
 ## Notas de implementación (2026-10-12)
 
+> **Actualización (2026-10-13):** las confirmaciones de esta sección reflejan el estado
+> del **2026-10-12**; varias fueron **resueltas después** por el backend. Estado vigente:
+> **S-02, S-03, S-04, S-09, S-17 y S-18 → Aplicadas** (commit `3cb9ba0`, ver cada sección);
+> el resto sigue abierto.
+
 Sugerencias **corroboradas directamente en el código** durante la implementación de F0–F4/F6
 (ver `docs/PLAN_TRABAJO.md` §11):
 
@@ -530,6 +587,44 @@ Sugerencias **corroboradas directamente en el código** durante la implementaci�
   (`talenti_saved_jobs`) porque no hay endpoint.
 - **S-11** — confirmado: el filtro por nivel de experiencia se **retiró** de la UI (el backend
   solo tiene `experience_years`).
+
+---
+
+## Consumo en el frontend (2026-10-13)
+
+Trabajo realizado en `Frontend-Talenti` para quedar nivelado con las sugerencias que el
+backend aplicó (commit `3cb9ba0`):
+
+| Sugerencia | Consumo en el frontend | Archivos principales |
+|---|---|---|
+| **S-02** | Las tarjetas del catálogo muestran los chips de **modalidad** y **tipo de empleo** desde el listado, sin pedir el detalle | `talentiTypes.ts`, `jobAdapter.ts` (`summaryToJob`), `ListCard.tsx` |
+| **S-03** | La sesión resuelve **roles** vía `GET /auth/me` (con *fallback* a los claims del token); la navegación por rol se habilita | `authApi.ts` (`me`), `useAuthStore.ts`, `types/index.ts`, `Sidebar.tsx` |
+| **S-04** | El tracker prefiere `job_offer_title`/`company_name` y cae a las ofertas ya cargadas (el backend hoy los envía `null`) | `talentiTypes.ts`, `SecondaryViews.tsx` |
+| **S-09** | El **panel de reclutador** (F7) avanza el embudo de cada postulación | `applicationsApi.ts`, `useRecruiter.ts`, `recruiter/RecruiterView.tsx` |
+| **S-17** | El `logout` revoca el **access token** (bearer) además del refresh | `authApi.ts` (`logout`) |
+| **S-18** | Las métricas de empresa del panel incluyen `offer-demand-ratio` sin `500` | `analyticsApi.ts`, `useRecruiter.ts`, `recruiter/RecruiterView.tsx` |
+
+**Nuevo frente (F7):** se implementó el panel de reclutador (`RecruiterView`) que consume
+`/companies*`, `POST|PATCH /job-offers*`, `GET /applications?job_offer_id=` y
+`/analytics/{vacancies,funnel,time-to-hire,time-in-stage,salary-benchmark,offer-demand-ratio}`.
+
+---
+
+## S-19 — Falta endpoint "mis empresas" (empresas del usuario autenticado)
+
+- **Fecha:** 2026-10-13 · **Prioridad:** Media · **Estado:** Abierta
+- **Directorio donde debe aplicarse:** `src/api/v1/companies.py`
+
+**Cambio necesario:**
+Exponer el listado de empresas a las que pertenece el usuario autenticado (p. ej.
+`GET /companies/mine` o `GET /me/companies`) con `[{ id, slug, name, is_owner, is_active }]`.
+
+**Justificación / impacto:**
+No existe forma de que el frontend descubra a qué empresa pertenece un reclutador: solo hay
+`GET /companies/{id}` (exige conocer el `id`) y las rutas de miembros también requieren el
+`id`. Para el panel de reclutador (F7) el frontend debe pedir el **ID de empresa** o crearla,
+y lo persiste en `localStorage` (`talenti_recruiter_company`) como puente. Un endpoint
+"mis empresas" elimina ese paso manual y es la base del selector de empresa.
 
 ---
 

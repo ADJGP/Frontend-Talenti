@@ -6,7 +6,12 @@
 
 import { apiFetch, buildQuery } from './api';
 import type { JobFilters } from '../types';
-import type { JobOfferDetailDto, JobOfferPageDto, JobOffersQuery } from './talentiTypes';
+import type {
+  JobOfferCreateDto,
+  JobOfferDetailDto,
+  JobOfferPageDto,
+  JobOffersQuery,
+} from './talentiTypes';
 
 export const DEFAULT_PAGE_SIZE = 20;
 export const MAX_PAGE_SIZE = 100;
@@ -56,5 +61,40 @@ export const jobsApi = {
   /** `GET /job-offers/{id}` — published offers are public, others 404. */
   async getOffer(offerId: string): Promise<JobOfferDetailDto> {
     return apiFetch<JobOfferDetailDto>(`/job-offers/${offerId}`);
+  },
+
+  // --- Recruiter surface (F7) — member of the offer's company only --------- //
+
+  /**
+   * `GET /job-offers?company_id=` — the company's offers. A member of the
+   * filtered company additionally sees its `draft`/`closed` offers (never
+   * another company's), which is what the recruiter board needs.
+   */
+  async listCompanyOffers(
+    companyId: string,
+    page = 1,
+    pageSize = DEFAULT_PAGE_SIZE
+  ): Promise<JobOfferPageDto> {
+    return apiFetch<JobOfferPageDto>(
+      `/job-offers${buildQuery({company_id: companyId, page, page_size: pageSize})}`
+    );
+  },
+
+  /** `POST /job-offers` — create a draft offer for a company the caller belongs to. */
+  async createOffer(payload: JobOfferCreateDto): Promise<JobOfferDetailDto> {
+    return apiFetch<JobOfferDetailDto>('/job-offers', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /** `PATCH /job-offers/{id}/publish` — publish a draft (enforces the plan cap). */
+  async publishOffer(offerId: string): Promise<JobOfferDetailDto> {
+    return apiFetch<JobOfferDetailDto>(`/job-offers/${offerId}/publish`, {method: 'PATCH'});
+  },
+
+  /** `PATCH /job-offers/{id}/close` — close a published offer (final). */
+  async closeOffer(offerId: string): Promise<JobOfferDetailDto> {
+    return apiFetch<JobOfferDetailDto>(`/job-offers/${offerId}/close`, {method: 'PATCH'});
   },
 };

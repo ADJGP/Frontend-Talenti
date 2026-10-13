@@ -27,6 +27,7 @@ import {
   useUpdateProfile,
 } from '../../hooks/useProfile';
 import { formatSalary } from '../../utils';
+import { initialsFor, logoBackgroundFor } from '../../services/jobAdapter';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
@@ -74,8 +75,11 @@ export function ApplicationsView() {
   const { data: jobsData } = useJobs();
   const withdraw = useWithdrawApplication();
 
-  // Titles come from the offers already loaded from the API (ApplicationSummary
-  // does not carry them yet — ver sugerencias.md S-04), so there is no N+1.
+  // S-04: the backend added `job_offer_title`/`company_name` to
+  // `ApplicationSummary`, but `GET /applications` still returns them as `null`
+  // (verified 2026-10-13: `ApplicationsPage.from_rows` does not populate them).
+  // We prefer the embedded values when present and fall back to the offers
+  // already loaded from the API — never an extra per-row request (no N+1).
   const jobsById = useMemo(() => {
     const map = new Map<string, { title: string; company: string; logoBg: string; logoText: string }>();
     for (const job of jobsData?.jobs ?? []) {
@@ -141,6 +145,15 @@ export function ApplicationsView() {
         <div className="grid grid-cols-1 gap-3">
           {items.map((app) => {
             const job = jobsById.get(app.job_offer_id);
+            const title =
+              app.job_offer_title ??
+              job?.title ??
+              `${t.viewRoleBtn} · ${app.job_offer_id.slice(0, 8)}`;
+            const companyName = app.company_name ?? job?.company ?? '—';
+            const logoSeed = app.company_name ?? job?.company;
+            const logoBg =
+              job?.logoBg ?? (logoSeed ? logoBackgroundFor(logoSeed) : 'bg-slate-400');
+            const logoText = job?.logoText ?? (logoSeed ? initialsFor(logoSeed) : '–');
             return (
               <div
                 key={app.id}
@@ -148,16 +161,16 @@ export function ApplicationsView() {
               >
                 <div className="flex items-center gap-3">
                   <div
-                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white shadow-xs ${job?.logoBg ?? 'bg-slate-400'}`}
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white shadow-xs ${logoBg}`}
                   >
-                    {job?.logoText ?? '–'}
+                    {logoText}
                   </div>
                   <div>
                     <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                      {job?.title ?? `${t.viewRoleBtn} · ${app.job_offer_id.slice(0, 8)}`}
+                      {title}
                     </h4>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      {job?.company ?? '—'} • {t.appliedOn}{' '}
+                      {companyName} • {t.appliedOn}{' '}
                       {new Date(app.created_at).toLocaleDateString()}
                     </p>
                   </div>

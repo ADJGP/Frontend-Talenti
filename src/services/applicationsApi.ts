@@ -4,6 +4,7 @@
 // PATCH /applications/{id} (withdraw).
 
 import { apiFetch, buildQuery } from './api';
+import type { ApplicationStatus } from '../types';
 import type { ApplicationDto, ApplicationsPageDto } from './talentiTypes';
 
 export const DEFAULT_PAGE_SIZE = 20;
@@ -35,5 +36,37 @@ export const applicationsApi = {
   /** Retract the application (owner only) — the backend moves it to `withdrawn`. */
   async withdraw(applicationId: string): Promise<ApplicationDto> {
     return apiFetch<ApplicationDto>(`/applications/${applicationId}`, {method: 'PATCH'});
+  },
+
+  // --- Recruiter surface (F7) ----------------------------------------------
+
+  /**
+   * `GET /applications?job_offer_id=` — one offer's applications, for a member
+   * of the offer's company. Without the query param the endpoint returns the
+   * caller's own applications (candidate view).
+   */
+  async listForOffer(
+    jobOfferId: string,
+    page = 1,
+    pageSize = DEFAULT_PAGE_SIZE
+  ): Promise<ApplicationsPageDto> {
+    return apiFetch<ApplicationsPageDto>(
+      `/applications${buildQuery({job_offer_id: jobOfferId, page, page_size: pageSize})}`
+    );
+  },
+
+  /**
+   * `PATCH /applications/{id}/status` — advance the lifecycle. Company members
+   * of the offer's company may move it through the non-`withdrawn` statuses
+   * (backend S-09, commit `3cb9ba0`).
+   */
+  async transitionStatus(
+    applicationId: string,
+    newStatus: ApplicationStatus
+  ): Promise<ApplicationDto> {
+    return apiFetch<ApplicationDto>(`/applications/${applicationId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({new_status: newStatus}),
+    });
   },
 };

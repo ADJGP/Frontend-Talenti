@@ -2,7 +2,8 @@
 
 Frontend de **Talenti**, integrado con la API FastAPI del repo **`BD_Bolsa_Trabajo`**.
 Vista dividida (master-detail) tipo Linear/Superhuman para explorar ofertas, con
-autenticación real, postulaciones end-to-end, perfil de candidato y analítica de carrera.
+autenticación real, postulaciones end-to-end, perfil de candidato, analítica de carrera y
+un **panel de reclutador** (empresa, ofertas, postulantes, embudo y métricas).
 
 > **Estado de integración y plan por etapas:** ver [`docs/PLAN_TRABAJO.md`](docs/PLAN_TRABAJO.md).
 > **Ajustes solicitados al backend:** ver [`sugerencias.md`](sugerencias.md).
@@ -75,11 +76,12 @@ La capa de servicios (`src/services/`) es la única que habla con la API:
 
 | Servicio | Endpoints |
 |---|---|
-| `authApi.ts` | `POST /api/v1/auth/{register,login,refresh,logout,logout/refresh}` |
-| `jobsApi.ts` | `GET /job-offers` (paginado + facetas), `GET /job-offers/{id}` |
-| `applicationsApi.ts` | `POST/GET /applications`, `GET /applications/{id}`, `PATCH /applications/{id}` |
+| `authApi.ts` | `GET /api/v1/auth/me` (roles), `POST /api/v1/auth/{register,login,refresh,logout,logout/refresh}` |
+| `jobsApi.ts` | `GET /job-offers` (paginado + facetas), `GET /job-offers/{id}`, `POST /job-offers`, `PATCH /job-offers/{id}/{publish,close}` |
+| `applicationsApi.ts` | `POST/GET /applications`, `GET /applications/{id}`, `PATCH /applications/{id}`, `GET /applications?job_offer_id=`, `PATCH /applications/{id}/status` |
 | `profilesApi.ts` | `GET/POST /profiles`, `GET/PATCH /profiles/me`, `GET/PUT /profiles/skills`, `GET /skills` |
-| `analyticsApi.ts` | `GET /analytics/{salary-radar,skill-gap,response-rate}` |
+| `companiesApi.ts` | `POST /companies`, `GET /companies/{id}`, `GET|POST /companies/{id}/members` |
+| `analyticsApi.ts` | `GET /analytics/{salary-radar,skill-gap,response-rate}` + métricas de empresa (`{vacancies,funnel,time-to-hire,time-in-stage,salary-benchmark,offer-demand-ratio}`) |
 
 El cliente `src/services/api.ts` añade el `Authorization: Bearer`, refresca la sesión una
 vez ante `401`, normaliza los errores en `ApiError` y expone `retryAfter` para los `429`.
@@ -90,6 +92,9 @@ vez ante `401`, normaliza los errores en `ApiError` y expone `retryAfter` para l
 - El **refresh token** se persiste en `localStorage` (`talenti_refresh_token`) porque la API
   lo devuelve en el cuerpo de la respuesta (ver `sugerencias.md` S-07). Se canjea al arrancar
   la app para restaurar la sesión.
+- Los **roles** (`candidate`/`recruiter`/`admin`) se resuelven con `GET /api/v1/auth/me`
+  (**S-03**), no decodificando el JWT; si esa llamada falla, la sesión cae a los claims del
+  token y la navegación por rol queda oculta.
 
 ---
 
@@ -100,6 +105,7 @@ src/
   components/
     auth/AuthScreen.tsx        # Login / registro (gate de vistas privadas)
     jobs/                      # FilterBar, ListCard, DetailsView, JobDashboard, ApplyModal
+    recruiter/RecruiterView.tsx # Panel de reclutador (F7): empresa, ofertas, embudo, métricas
     shared/                    # Sidebar, Navbar, MainLayout, CommandPalette, SecondaryViews…
     ui/                        # Primitivas (button, badge, dialog, input, skeleton…)
   hooks/                       # useJobs, useApply, useProfile, useTheme, useKeyboardShortcuts

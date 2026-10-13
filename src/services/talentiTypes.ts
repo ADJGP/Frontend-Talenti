@@ -40,6 +40,20 @@ export interface AccessTokenClaims {
   token_type: string;
 }
 
+/**
+ * `GET /api/v1/auth/me` — current user + role slugs (added by the backend, S-03).
+ *
+ * The frontend uses it to drive role-based navigation instead of decoding the
+ * JWT (`CurrentUserMeResponse` in `src/api/v1/deps.py`, no secrets).
+ */
+export interface CurrentUserMeDto {
+  id: string;
+  email: string;
+  full_name: string | null;
+  is_active: boolean;
+  roles: string[]; // e.g. ["candidate" | "recruiter" | "admin"]
+}
+
 // --------------------------------------------------------------------------- //
 // Job offers (stage 2)
 // --------------------------------------------------------------------------- //
@@ -52,6 +66,10 @@ export interface JobOfferSummaryDto {
   category_name: string | null;
   title: string;
   status: string; // draft | published | closed
+  // S-02 applied by the backend (2026-10-12): the listing summary now carries
+  // modality/employment_type, so the cards no longer need the detail (no N+1).
+  modality: string | null; // remote | hybrid | onsite
+  employment_type: string | null; // full_time | part_time | contract | temporary | internship
   location: string | null;
   salary_min_cents: number | null;
   salary_max_cents: number | null;
@@ -61,10 +79,23 @@ export interface JobOfferSummaryDto {
 
 export interface JobOfferDetailDto extends JobOfferSummaryDto {
   description: string;
-  modality: string | null; // remote | hybrid | onsite
-  employment_type: string | null; // full_time | part_time | contract | temporary | internship
   city_id: string | null;
   closes_at: string | null;
+}
+
+/** `POST /job-offers` payload (member of the offer's company only). */
+export interface JobOfferCreateDto {
+  company_id: string;
+  category_id: string;
+  title: string;
+  description: string;
+  modality?: string | null;
+  employment_type?: string | null;
+  location?: string | null;
+  city_id?: string | null;
+  salary_min_cents?: number | null;
+  salary_max_cents?: number | null;
+  salary_currency?: string | null;
 }
 
 export interface CategoryFacetRowDto {
@@ -176,9 +207,21 @@ export interface ApplicationDto {
 export interface ApplicationSummaryDto {
   id: string;
   job_offer_id: string;
+  // S-04 fields. NOTE (verified 2026-10-13): the backend declares them but
+  // `ApplicationsPage.from_rows` still calls `from_model(row)` without the job
+  // context, so `GET /applications` returns them as `null` today. The UI must
+  // treat them as optional and fall back (see ApplicationsView).
+  job_offer_title: string | null;
+  company_id: string | null;
+  company_name: string | null;
   candidate_id: string;
   status: string;
   created_at: string;
+}
+
+/** `PATCH /applications/{id}/status` payload (S-09: company members may advance). */
+export interface ApplicationStatusUpdateDto {
+  new_status: string;
 }
 
 export interface ApplicationsPageDto {
@@ -240,4 +283,94 @@ export interface PersonalResponseRateDto {
   responses: number;
   response_rate: number | null;
   window_days: number | null;
+}
+
+// --------------------------------------------------------------------------- //
+// Companies (stage 2) — recruiter surface (F7)
+// --------------------------------------------------------------------------- //
+
+export interface CompanyDto {
+  id: string;
+  slug: string;
+  name: string;
+  is_active: boolean;
+  description: string | null;
+  industry: string | null;
+  website_url: string | null;
+  logo_url: string | null;
+  location: string | null;
+  city_id: string | null;
+}
+
+/** `POST /companies` payload (slug `^[a-z0-9]+(_[a-z0-9]+)*$`). */
+export interface CompanyCreateDto {
+  name: string;
+  slug: string;
+  description?: string | null;
+  industry?: string | null;
+  website_url?: string | null;
+  logo_url?: string | null;
+  location?: string | null;
+  city_id?: string | null;
+}
+
+export interface CompanyMemberDto {
+  id: string;
+  company_id: string;
+  user_id: string;
+  is_owner: boolean;
+  created_at: string;
+}
+
+/** `POST /companies/{id}/members` payload (owner only). */
+export interface CompanyMemberCreateDto {
+  user_id: string;
+  is_owner?: boolean;
+}
+
+// --------------------------------------------------------------------------- //
+// Company analytics (stages 4/5) — recruiter surface (F7)
+// --------------------------------------------------------------------------- //
+
+export interface TimeToHireDto {
+  hires: number;
+  avg_days: number | null;
+  median_days: number | null;
+  window_days: number | null;
+}
+
+export interface StageConversionDto {
+  stage: string;
+  entered: number;
+  converted_to_next: number | null;
+  conversion_rate: number | null;
+}
+
+export interface TimeInStageDto {
+  stage: string;
+  samples: number;
+  avg_days: number | null;
+}
+
+export interface VacancyStatusDto {
+  status: string;
+  count: number;
+}
+
+export interface SalaryBenchmarkRowDto {
+  job_offer_id: string;
+  title: string;
+  salary_currency: string;
+  offer_midpoint_cents: number;
+  market_midpoint_cents: number;
+  market_offers: number;
+  delta_pct: number;
+}
+
+export interface OfferDemandRatioDto {
+  job_offer_id: string;
+  title: string;
+  unique_applicants: number;
+  published_days: number;
+  ratio: number;
 }

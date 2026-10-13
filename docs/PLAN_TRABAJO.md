@@ -5,7 +5,7 @@
 > (`BD_Bolsa_Trabajo/etapas.md`) para que ambas partes avancen en paralelo
 > entregando funcionalidad vertical en cada etapa.
 >
-> Última actualización: **2026-10-12**
+> Última actualización: **2026-10-13**
 
 ---
 
@@ -17,12 +17,14 @@
 |---|---|---|
 | 1 — Autenticación e Identidad | JWT RS256, JWKS, refresh/revocación, registro/login | 🟢 Cerrada |
 | 2 — Reclutamiento y Bolsa de Trabajo | empresas, perfiles, ofertas, postulaciones, skills, membresías | 🟢 Cerrada |
-| 3 — RAG/ATS y Evaluaciones | CVs multi-formato, búsqueda semántica, evaluaciones, soft skills | 🟡 En proceso |
+| 3 — RAG/ATS y Evaluaciones | CVs multi-formato, búsqueda semántica, evaluaciones, soft skills | 🟢 Cerrada |
 | 4 — Analítica y Geografía | geografía, embudo, barómetro, radar salarial, ROI | 🟢 Cerrada |
 | 5 — Motor analítico del ATS | time-to-hire, funnel, time-in-stage, vacantes, §1.3 | 🟢 Cerrada |
 
-- Suite del backend: **1757/1757** en verde; 4 de 5 etapas cerradas.
-- Único pendiente abierto: validación con **embeddings reales** (Etapa 3).
+- Suite del backend: **1797/1797** en verde; **5 de 5 etapas cerradas (100 %)**.
+- Etapa 3 cerrada el **2026-10-12** con embeddings reales (Gemini `gemini-embedding-001`).
+- **Sugerencias aplicadas** por el backend (commit `3cb9ba0`, 2026-10-12): S-02, S-03, S-09,
+  S-17 y S-18; S-04 declarada a nivel de esquema pero aún sin poblar. Ver `sugerencias.md`.
 - Fuente del contrato: `BD_Bolsa_Trabajo/src/api/v1/*`, `docs/GUIA_USO_API.md`, `docs/ANALYTICS.md`.
 
 ### 1.2 Frontend (`Frontend-Talenti`, este repo)
@@ -78,13 +80,13 @@
 | # | Etapa frontend | Etapa backend de soporte | Estado | Verificado |
 |---|---|---|---|---|
 | **F0** | Fundaciones y contrato de integración | — (transversal) | 🟡 En proceso | `tsc` ✅, `build` ✅, proxy ✅ |
-| **F1** | Autenticación e identidad | Etapa 1 🟢 | 🟡 En proceso | `tsc` ✅, `build` ✅, **E2E ✅** (S-17 pendiente) |
-| **F2** | Catálogo de ofertas (split view real) | Etapa 2 🟢 | 🟡 En proceso (núcleo) | `tsc` ✅, `build` ✅, **E2E ✅** (público+filtros) |
+| **F1** | Autenticación e identidad | Etapa 1 🟢 | 🟡 En proceso | `tsc` ✅, `build` ✅, **E2E ✅**; roles vía `/auth/me` (S-03), logout revoca access (S-17) |
+| **F2** | Catálogo de ofertas (split view real) | Etapa 2 🟢 | 🟡 En proceso (núcleo) | `tsc` ✅, `build` ✅, **E2E ✅**; chips modalidad/tipo ✅ (S-02) |
 | **F3** | Perfil de candidato, skills y CV | Etapas 2 🟢 + 3 🟡 | 🟡 En proceso (parcial) | `tsc` ✅, `build` ✅, **E2E ✅** (perfil+skills) |
-| **F4** | Postulaciones end-to-end | Etapa 2 🟢 | 🟡 En proceso (núcleo) | `tsc` ✅, `build` ✅, **E2E ✅** |
+| **F4** | Postulaciones end-to-end | Etapa 2 🟢 | 🟡 En proceso (núcleo) | `tsc` ✅, `build` ✅, **E2E ✅**; tracker con título/empresa (S-04 parcial en backend) |
 | **F5** | RAG/ATS + Evaluaciones | Etapa 3 🟡 | ⏸️ Bloqueada | — |
 | **F6** | Analítica y geografía | Etapas 4 🟢 / 5 🟢 | 🟡 En proceso (self-service) | `tsc` ✅, `build` ✅, **E2E ✅** (self-service) |
-| **F7** | Superficies de reclutador y admin | Etapas 2 🟢 / 4 🟢 / 5 🟢 | 🟡 En proceso (sin UI) | **E2E ✅** (empresa/membresía/oferta); S-09 bloquea el embudo |
+| **F7** | Superficies de reclutador y admin | Etapas 2 🟢 / 4 🟢 / 5 🟢 | 🟡 En proceso (panel reclutador) | `tsc` ✅, `build` ✅; embudo y métricas habilitados por S-09/S-18 |
 
 > **Pendiente transversal de verificación:** ninguna etapa puede cerrarse hasta
 > ejecutar la prueba end-to-end contra el stack Docker del backend. El entorno de
@@ -133,7 +135,7 @@
 **Objetivo:** sesión real (registro/login/refresh/logout) y navegación según rol.
 
 **Endpoints:** `POST /api/v1/auth/{register,login,refresh,logout,logout/refresh}`,
-`GET /api/v1/auth/jwks`. *(Deseable `GET /api/v1/auth/me` → **S-03**.)*
+`GET /api/v1/auth/jwks`, `GET /api/v1/auth/me` (roles — **S-03 aplicada**).
 
 **Entregables:**
 - [x] `src/services/authApi.ts` (registro, login, refresh, logout con revocación de ambos tokens).
@@ -141,6 +143,8 @@
 - [x] `src/store/useAuthStore.ts`: `loading/anonymous/authenticated`, `bootstrap()` que
       canjea el refresh token al arrancar, y mensajes de error 401/409/429.
 - [x] Interceptor de refresco en `api.ts`: ante `401`, refresca **una vez** y reintenta.
+- [x] `GET /auth/me` integrado: la sesión resuelve `roles`/`full_name` (con *fallback* a los
+      claims del token) y habilita la navegación por rol (**S-03**).
 - [x] `src/components/auth/AuthScreen.tsx`: login/registro con validación (contraseña 8–128
       con mayúscula/minúscula/número/símbolo, email) y mostrar/ocultar contraseña.
 - [x] **Gate** de vistas privadas (`applications`, `profile`, `dashboard`) en `MainLayout`;
@@ -154,8 +158,9 @@
 - [x] `429` en login y `409` en registro muestran mensaje claro.
 - [x] Todos los textos en ES/EN.
 
-**Riesgos:** el token no lleva roles y no hay `/auth/me`, así que el rol se infiere solo
-del `sub`/`email` (→ **S-03**); persistencia del refresh token en el navegador (→ **S-07**).
+**Riesgos:** persistencia del refresh token en el navegador (→ **S-07**). El rol se obtiene
+de `/auth/me` (**S-03** aplicada); si esa llamada falla, la sesión cae a los claims del token
+sin roles y la navegación por rol queda oculta.
 
 ---
 
@@ -191,7 +196,8 @@ del `sub`/`email` (→ **S-03**); persistencia del refresh token en el navegador
 **Criterios de aceptación:**
 - [x] El detalle muestra `description` real; las secciones ausentes no se inventan.
 - [ ] Faceta seleccionada refleja el `count` real (pendiente: verificación en vivo).
-- [ ] Tarjetas muestran modalidad/tipo de empleo (requiere **S-02**).
+- [x] Tarjetas muestran modalidad/tipo de empleo (**S-02 aplicada**): los chips salen del
+      propio listado, sin pedir el detalle (sin N+1).
 
 ---
 
@@ -235,7 +241,9 @@ del `sub`/`email` (→ **S-03**); persistencia del refresh token en el navegador
       marcador "ya postulado" (se elimina el estado ficticio de `localStorage`).
 - [x] `ApplicationsView` con el **enum real** (`submitted, in_review, interviewing,
       offered, hired, rejected, withdrawn`) y acción de **retiro** (`withdrawn`).
-- [ ] **Pendiente:** sincronizar título/empresa de cada postulación sin N+1 (**S-04**).
+- [x] Título/empresa de cada postulación: se usa `job_offer_title`/`company_name` del
+      resumen cuando el backend los envía, con *fallback* a las ofertas ya cargadas (sin N+1).
+      **S-04 sigue parcial en el backend** (los campos llegan `null`; ver `sugerencias.md`).
 - [ ] **Hallazgo (2026-10-12):** postular **exige un perfil creado**; sin él
   `POST /applications` responde `404 profile_not_found_error` y `ApplyModal` muestra el
   texto literal del backend en inglés (*«profile for candidate … does not exist»*).
@@ -275,7 +283,7 @@ del `sub`/`email` (→ **S-03**); persistencia del refresh token en el navegador
 | Grupo | Endpoints | Acceso | Estado |
 |---|---|---|---|
 | Self-service candidato | `/analytics/salary-radar`, `/skill-gap`, `/response-rate` | autenticado | ✅ integrado |
-| Empresa / reclutador | `/time-to-hire`, `/funnel`, `/time-in-stage`, `/vacancies`, `/salary-benchmark`, `/offer-demand-ratio` | admin o miembro | ⏳ pendiente |
+| Empresa / reclutador | `/time-to-hire`, `/funnel`, `/time-in-stage`, `/vacancies`, `/salary-benchmark`, `/offer-demand-ratio` | admin o miembro | ✅ integrado (panel F7) |
 | Plataforma | `/labor-barometer`, `/partner-roi`, `/quota-usage` | solo admin | ⏳ pendiente |
 | Geografía | `/geography/countries`, `/countries/{id}/states`, `/states/{id}/cities` | público | ⏳ pendiente |
 
@@ -284,7 +292,9 @@ del `sub`/`email` (→ **S-03**); persistencia del refresh token en el navegador
 - [x] `DashboardInsightsView` real: tasa de respuesta, radar salarial (percentiles por
       moneda) y brecha de habilidades — sin cifras inventadas.
 - [x] Eliminados los KPIs y la matriz de skills ficticios.
-- [ ] **Pendiente:** tableros de empresa/plataforma (dependen de F7).
+- [x] Tablero de **empresa** integrado en el panel de reclutador (F7): vacantes, embudo,
+      time-to-hire, time-in-stage, benchmark salarial y `offer-demand-ratio` (**S-18**).
+- [ ] **Pendiente:** tablero de **plataforma** (solo admin: barómetro, partner-ROI, cuotas).
 - [ ] **Pendiente:** filtros de geografía en el catálogo.
 
 **Criterios de aceptación:**
@@ -294,10 +304,32 @@ del `sub`/`email` (→ **S-03**); persistencia del refresh token en el navegador
 ---
 
 ### F7 — Superficies de reclutador y admin
-**Estado: ⏳ Por decidir** · **Backend: Etapas 2 🟢 / 4 🟢 / 5 🟢**
+**Estado: 🟡 En proceso (panel reclutador)** · **Backend: Etapas 2 🟢 / 4 🟢 / 5 🟢**
 
-Sin cambios respecto al plan original. **Dependencia bloqueante:** mover el estado de una
-postulación hoy solo lo puede hacer el candidato dueño (→ **S-09**).
+**Objetivo:** dar al reclutador/empresa las superficies de gestión que el backend ya expone.
+
+**Endpoints:** `POST|GET /companies*`, `POST|PATCH /job-offers*` (crear/publicar/cerrar),
+`GET /applications?job_offer_id=`, `PATCH /applications/{id}/status` (**S-09**),
+`/analytics/{vacancies,funnel,time-to-hire,time-in-stage,salary-benchmark,offer-demand-ratio}`.
+
+**Entregables:**
+- [x] `companiesApi`, `jobsApi` (crear/publicar/cerrar/listar por empresa),
+      `applicationsApi.listForOffer`/`transitionStatus`, `analyticsApi` (métricas de empresa).
+- [x] `useRecruiter` (hooks de empresa, ofertas, postulantes, embudo y métricas).
+- [x] `RecruiterView`: contexto de empresa (crear o usar existente), gestión de ofertas,
+      **postulantes por oferta con avance del embudo** (S-09) y **métricas de empresa** (S-18).
+- [x] Navegación por rol: el ítem **Empresa** del `Sidebar` aparece con rol `recruiter`/`admin`.
+- [ ] **Pendiente F7-completo:** panel de **admin de plataforma** (barómetro, partner-ROI,
+      cuotas) y gestión de miembros/roles de empresa.
+- [ ] **Pendiente:** selector de empresa automático (depende de **S-19**: endpoint "mis empresas").
+
+**Criterios de aceptación:**
+- [x] Un reclutador de la empresa avanza el estado de una postulación (habilita el embudo).
+- [x] Las métricas de empresa se renderizan desde sus DTOs (sin cifras inventadas).
+- [ ] E2E en vivo del panel completo (pendiente: stack accesible).
+
+**Dependencia resuelta:** **S-09** (el reclutador ya avanza el embudo) y **S-18**
+(`offer-demand-ratio` sin `500`).
 
 ---
 
@@ -305,7 +337,7 @@ postulación hoy solo lo puede hacer el candidato dueño (→ **S-09**).
 
 | Capacidad backend | Endpoint clave | Vista / hook frontend | Etapa | Estado |
 |---|---|---|---|---|
-| Identidad/sesión | `/api/v1/auth/*` | `useAuthStore`, `AuthScreen` | F1 | ✅ |
+| Identidad/sesión | `/api/v1/auth/*` (+ `/auth/me`) | `useAuthStore`, `AuthScreen` | F1 | ✅ |
 | Listado de ofertas | `GET /job-offers` | `useJobs`, `JobDashboard` | F2 | ✅ |
 | Detalle de oferta | `GET /job-offers/{id}` | `useJobDetail`, `DetailsView` | F2 | ✅ |
 | Categorías | `GET /categories` | `FilterBar` (facetas) | F2 | ✅ |
@@ -318,9 +350,9 @@ postulación hoy solo lo puede hacer el candidato dueño (→ **S-09**).
 | Matching semántico | `POST /ats/match` | vista ATS | F5 | ⏸️ |
 | Evaluaciones | `/evaluaciones*` | vista de evaluación | F5 | ⏸️ |
 | Analítica self-service | `/analytics/salary-radar|skill-gap|response-rate` | `DashboardInsightsView` | F6 | ✅ |
-| Analítica de empresa | `/analytics/time-to-hire|funnel|...` | panel reclutador | F6/F7 | ⏳ |
+| Analítica de empresa | `/analytics/time-to-hire|funnel|...` | `CompanyMetrics` (panel F7) | F6/F7 | ✅ |
 | Analítica de plataforma | `/analytics/labor-barometer|partner-roi|quota-usage` | panel admin | F6/F7 | ⏳ |
-| Empresas y miembros | `/companies*` | panel de reclutador | F7 | **API ✅** / UI ⏳ |
+| Empresas y miembros | `/companies*` | `RecruiterView` | F7 | ✅ (empresa/oferta/embudo) |
 | Membresías | `/company-memberships*` | admin | F7 | ⏳ |
 
 ---
@@ -350,6 +382,7 @@ uno con descripción, fecha y directorio donde debe aplicarse.
 | S-16 | `APP_DB_PASSWORD` con placeholder `CAMBIA_ME…` | Media | Endurecimiento |
 | S-17 | `POST /auth/logout` valida como refresh: el access token nunca se revoca | Alta | F1 (sesión) |
 | S-18 | `GET /analytics/offer-demand-ratio` devuelve 500 siempre (`max(a,b)`) | Alta | F6/F7 |
+| S-19 | Falta endpoint "mis empresas" (empresas del usuario) | Media | F7 (selector de empresa) |
 
 ---
 
@@ -357,7 +390,7 @@ uno con descripción, fecha y directorio donde debe aplicarse.
 
 - **Tipado estático:** `tsc --noEmit -p tsconfig.json` → **exit 0**.
 - **Símbolos sin usar:** `tsc --noEmit --noUnusedLocals --noUnusedParameters` → **0 errores**.
-- **Paridad i18n ES/EN:** verificado por script → **209 claves en ambos idiomas**.
+- **Paridad i18n ES/EN:** verificado por script → **264 claves en ambos idiomas** (2026-10-13).
 - **`strict`:** **desactivado** en `tsconfig.json` (hallazgo 2026-10-12); activarlo da
   ~1031 errores preexistentes, fuera del alcance de estas etapas.
 - **Build:** `vite build` → **exit 0**.
@@ -378,8 +411,12 @@ uno con descripción, fecha y directorio donde debe aplicarse.
 - **Hallazgos abiertos del E2E:** **S-09** (el reclutador no puede avanzar el embudo),
   **S-17** (el logout no revoca el access token) y **S-18**
   (`/analytics/offer-demand-ratio` responde 500).
+- **Alineación con el backend (2026-10-13):** `tsc -p tsconfig.json --noEmit` → **exit 0**;
+  `vite build` → **exit 0**; paridad i18n **264/264**. Consumo de S-02/S-03/S-09/S-17/S-18 y
+  panel de reclutador (F7) implementado; S-04 (parcial en backend) cubierta con *fallback*.
 - **No verificado aún:** pruebas unitarias, SonarQube y pruebas de seguridad de cada
-  etapa (los pasos siguientes del §3), y F5 (Etapa 3 abierta).
+  etapa (los pasos siguientes del §3), F5 (RAG/ATS) y el E2E en vivo del panel F7
+  (requiere el stack Docker accesible).
 - **Pruebas manuales:** el recorrido guiado está en **`docs/GUIA_PRUEBAS_MANUALES.md`**
   (arranque del entorno, datos `DEMO`, pasos por etapa, contrato API↔UI, checklist y
   apéndices con el *seed* y la *purga*).
@@ -394,8 +431,9 @@ uno con descripción, fecha y directorio donde debe aplicarse.
 | **Sin acceso a Docker en el entorno de desarrollo** | No se puede recrear el servicio `web` | `adjgp` no está en el grupo `docker` y no hay `sudo` sin contraseña; requiere acción del usuario para recrear el contenedor |
 | **`AUTH_SIGNING_KEY` placeholder en el `.env`** (hallazgo 2026-10-12) | Todo JWT da `500`: F1, F3–F5 y F7 no verificables | Corregida la clave en `.env`; falta `docker compose up -d --force-recreate web`; ver **S-15** |
 | Etapa 3 abierta (embeddings reales) | F5 sin cerrar | *Feature flag* + backlog F5 |
-| Falta de `/auth/me` | Navegación por rol limitada | **S-03** |
-| Solo el candidato mueve el embudo | F7 inviable | **S-09** antes de F7 |
+| Falta de `/auth/me` | Navegación por rol limitada | **Resuelto**: `/auth/me` integrado (**S-03**) |
+| Solo el candidato mueve el embudo | F7 inviable | **Resuelto**: el reclutador avanza el embudo (**S-09**) |
+| Sin endpoint "mis empresas" | El reclutador debe introducir/crear el ID de empresa | **S-19** (pendiente backend); el panel lo persiste localmente |
 | CORS en orígenes separados | Despliegue no-nginx falla | **S-01** |
 | Rate limit de escrituras (10/min) | `429` en ráfaga | Manejo de `Retry-After` en `api.ts` |
 | `strict` de TypeScript desactivado | Los `undefined` no se verifican en compilación | Tarea aparte: activar `strict` y corregir (~1031 errores) |
@@ -573,6 +611,32 @@ Se crea **`docs/GUIA_PRUEBAS_MANUALES.md`** para explorar y comprobar a mano las
 con E2E en verde: arranque del entorno, datos de prueba, pasos por etapa con el resultado
 esperado, tabla de contrato API↔UI, hallazgos que **no** son fallos del entorno y checklist
 de regresión.
+
+### 2026-10-13 — Nivelación con el backend (S-02/S-03/S-04/S-09/S-17/S-18) y panel F7
+
+El backend cerró las 5 etapas (100 %) y aplicó, en el commit `3cb9ba0`, las sugerencias
+**S-02, S-03, S-09, S-17 y S-18** (más S-04 declarada a nivel de esquema). El frontend se
+nivela consumiéndolas y se construye el **panel de reclutador (F7)**:
+
+- **S-02** — chips de **modalidad** y **tipo de empleo** en las tarjetas desde el listado
+  (`jobAdapter.summaryToJob`, `ListCard`), sin pedir el detalle.
+- **S-03** — `GET /api/v1/auth/me` integrado: la sesión resuelve **roles**/`full_name` con
+  *fallback* a los claims del token; navegación por rol en el `Sidebar`.
+- **S-04** — el tracker prefiere `job_offer_title`/`company_name` y cae a las ofertas ya
+  cargadas. **Parcial en backend**: `ApplicationsPage.from_rows` no puebla los campos, así
+  que hoy llegan `null` (ver `sugerencias.md`).
+- **S-09** — el **panel de reclutador** avanza el embudo (`PATCH /applications/{id}/status`).
+- **S-17** — el `logout` revoca el access token (bearer) además del refresh.
+- **S-18** — las métricas de empresa incluyen `offer-demand-ratio` sin `500`.
+- **F7** — nueva superficie `RecruiterView` (empresa, ofertas, postulantes, embudo y
+  métricas de empresa) + `companiesApi`, `useRecruiter` y navegación por rol. Nueva
+  sugerencia **S-19** (falta endpoint "mis empresas").
+
+**Verificación:** `node ./node_modules/typescript/bin/tsc -p tsconfig.json --noEmit` →
+**exit 0**; `vite build` → **exit 0**; paridad i18n **264/264** claves ES/EN.
+
+> Nota de entorno: `npm run lint` (`tsc --noEmit`) no puede ejecutarse por el *wrapper* de
+> Windows (ruta UNC) de este entorno; se invocó el compilador con `node` directamente.
 
 **Datos de prueba.** Los fixtures ad-hoc del E2E se sustituyen por un conjunto `DEMO`
 **reproducible e idempotente** (Apéndice A de la guía): 3 empresas y 6 ofertas publicadas

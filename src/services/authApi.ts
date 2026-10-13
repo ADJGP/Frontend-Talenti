@@ -1,10 +1,11 @@
 // Authentication API (backend stage 1 — closed).
 //
-// Endpoints: POST /api/v1/auth/{register,login,refresh,logout,logout/refresh}.
+// Endpoints: GET  /api/v1/auth/me
+//            POST /api/v1/auth/{register,login,refresh,logout,logout/refresh}.
 
 import { ApiError, apiFetch } from './api';
 import { clearSession, getAccessToken, getRefreshToken, setSession } from './tokenStorage';
-import type { RevokeDto, TokenPairDto } from './talentiTypes';
+import type { CurrentUserMeDto, RevokeDto, TokenPairDto } from './talentiTypes';
 
 export interface RegisterPayload {
   email: string;
@@ -18,6 +19,16 @@ export interface LoginPayload {
 }
 
 export const authApi = {
+  /**
+   * `GET /api/v1/auth/me` — current user + role slugs (backend S-03).
+   *
+   * Drives role-based navigation without decoding the JWT; the access token is
+   * attached by `apiFetch` from the in-memory session.
+   */
+  async me(): Promise<CurrentUserMeDto> {
+    return apiFetch<CurrentUserMeDto>('/api/v1/auth/me');
+  },
+
   async register(payload: RegisterPayload): Promise<TokenPairDto> {
     const tokens = await apiFetch<TokenPairDto>('/api/v1/auth/register', {
       method: 'POST',
@@ -54,17 +65,15 @@ export const authApi = {
   /**
    * Revoke the session server-side, then drop the local one.
    *
-   * `POST /auth/logout` validates whatever it receives as a **refresh** token
-   * (`_revoke_token` in `src/api/v1/deps.py`), so with a bearer access token it
-   * always answers 401 and the access token's `jti` is never revoked
-   * (see sugerencias.md S-17). Two things this method must therefore respect:
+   * S-17 is fixed in the backend: `POST /auth/logout` now accepts **both** the
+   * access and the refresh token (`_revocation_attempt_configs` in
+   * `src/api/v1/deps.py`, commit `3cb9ba0`), so the bearer we send revokes the
+   * access token's `jti` too. We still also call `/auth/logout/refresh` with
+   * the refresh token so the whole session is invalidated.
    *
-   * 1. That 401 must **not** go through the automatic refresh: rotating the
-   *    pair here would revoke the stored refresh token and issue a new one that
-   *    `logout/refresh` (called with the captured value) can no longer revoke,
-   *    leaving a live refresh token behind.
-   * 2. The token that actually gets revoked is the refresh one, via
-   *    `/auth/logout/refresh` with the body payload.
+   * `retryOn401: false` on the bearer call is deliberate: a failure here must
+   * not go through the automatic refresh, which would rotate the pair and issue
+   * a new refresh token that the captured value could no longer revoke.
    */
   async logout(): Promise<void> {
     const refreshToken = getRefreshToken();

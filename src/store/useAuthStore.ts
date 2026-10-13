@@ -3,7 +3,7 @@ import { ApiError, setOnAuthFailure } from '../services/api';
 import { authApi, type LoginPayload, type RegisterPayload } from '../services/authApi';
 import { clearSession, getRefreshToken, hasSession } from '../services/tokenStorage';
 import { decodeJwtPayload } from '../utils/jwt';
-import type { AccessTokenClaims } from '../services/talentiTypes';
+import type { AccessTokenClaims, TokenPairDto } from '../services/talentiTypes';
 import type { SessionUser } from '../types';
 
 export type AuthStatus = 'loading' | 'anonymous' | 'authenticated';
@@ -22,11 +22,34 @@ interface AuthState {
   clearError: () => void;
 }
 
-/** Build the session user from the access token claims (no backend /auth/me yet). */
+/**
+ * Fallback session user built from the access token claims when `/auth/me`
+ * cannot be reached (e.g. transient network failure). Carries no roles, so
+ * role-gated navigation stays hidden until the next refresh succeeds.
+ */
 function userFromAccessToken(accessToken: string): SessionUser | null {
   const claims = decodeJwtPayload<AccessTokenClaims>(accessToken);
   if (!claims?.sub) return null;
-  return {id: claims.sub, email: claims.email ?? ''};
+  return {id: claims.sub, email: claims.email ?? '', fullName: null, roles: []};
+}
+
+/**
+ * Resolve the session user through `GET /api/v1/auth/me` (backend S-03), which
+ * exposes the role slugs the JWT does not carry. Falls back to the token claims
+ * if the call fails, so a hiccup never blocks the login itself.
+ */
+async function resolveUser(tokens: TokenPairDto): Promise<SessionUser | null> {
+  try {
+    const me = await authApi.me();
+    return {
+      id: me.id,
+      email: me.email,
+      fullName: me.full_name,
+      roles: Array.isArray(me.roles) ? me.roles : [],
+    };
+  } catch {
+    return userFromAccessToken(tokens.access_token);
+  }
 }
 
 function errorMessage(err: unknown): string {
@@ -59,7 +82,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
     try {
       const tokens = await authApi.refresh();
-      set({status: 'authenticated', user: userFromAccessToken(tokens.access_token)});
+      set({status: 'authenticated', user: await resolveUser(tokens)});
     } catch {
       clearSession();
       set({status: 'anonymous', user: null});
@@ -72,7 +95,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       const tokens = await authApi.login(payload);
       set({
         status: 'authenticated',
-        user: userFromAccessToken(tokens.access_token),
+        user: await resolveUser(tokens),
         isSubmitting: false,
       });
       return true;
@@ -88,7 +111,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       const tokens = await authApi.register(payload);
       set({
         status: 'authenticated',
-        user: userFromAccessToken(tokens.access_token),
+        user: await resolveUser(tokens),
         isSubmitting: false,
       });
       return true;

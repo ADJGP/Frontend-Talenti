@@ -8,9 +8,15 @@
 
 import { apiFetch, buildQuery } from './api';
 import type {
+  OfferDemandRatioDto,
   PersonalResponseRateDto,
+  SalaryBenchmarkRowDto,
   SalaryRadarGroupDto,
   SkillGapItemDto,
+  StageConversionDto,
+  TimeInStageDto,
+  TimeToHireDto,
+  VacancyStatusDto,
 } from './talentiTypes';
 
 export const analyticsApi = {
@@ -30,6 +36,40 @@ export const analyticsApi = {
   async responseRate(days?: number): Promise<PersonalResponseRateDto> {
     return apiFetch<PersonalResponseRateDto>(
       `/analytics/response-rate${buildQuery({days})}`
+    );
+  },
+
+  // --- Company metrics (recruiter/company or admin) — F7 --------------------
+
+  /** `GET /analytics/time-to-hire?days=` — average + median days submitted→hired. */
+  async companyTimeToHire(days?: number): Promise<TimeToHireDto> {
+    return apiFetch<TimeToHireDto>(`/analytics/time-to-hire${buildQuery({days})}`);
+  },
+
+  /** `GET /analytics/funnel?days=` — entries + stage-to-stage conversion. */
+  async companyFunnel(days?: number): Promise<StageConversionDto[]> {
+    return apiFetch<StageConversionDto[]>(`/analytics/funnel${buildQuery({days})}`);
+  },
+
+  /** `GET /analytics/time-in-stage?days=` — average dwell time per stage. */
+  async companyTimeInStage(days?: number): Promise<TimeInStageDto[]> {
+    return apiFetch<TimeInStageDto[]>(`/analytics/time-in-stage${buildQuery({days})}`);
+  },
+
+  /** `GET /analytics/vacancies?days=` — offer counts per status. */
+  async companyVacancies(days?: number): Promise<VacancyStatusDto[]> {
+    return apiFetch<VacancyStatusDto[]>(`/analytics/vacancies${buildQuery({days})}`);
+  },
+
+  /** `GET /analytics/salary-benchmark` — competitive delta per published offer. */
+  async companySalaryBenchmark(): Promise<SalaryBenchmarkRowDto[]> {
+    return apiFetch<SalaryBenchmarkRowDto[]>('/analytics/salary-benchmark');
+  },
+
+  /** `GET /analytics/offer-demand-ratio?days=` — unique applicants per published day. */
+  async companyOfferDemandRatio(days?: number): Promise<OfferDemandRatioDto[]> {
+    return apiFetch<OfferDemandRatioDto[]>(
+      `/analytics/offer-demand-ratio${buildQuery({days})}`
     );
   },
 };

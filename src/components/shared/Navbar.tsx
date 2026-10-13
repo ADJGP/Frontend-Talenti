@@ -25,6 +25,8 @@ export function Navbar() {
         return t.pageTitleSaved;
       case 'dashboard':
         return t.pageTitleDashboard;
+      case 'company':
+        return t.pageTitleCompany;
       case 'profile':
         return t.pageTitleProfile;
       case 'settings':

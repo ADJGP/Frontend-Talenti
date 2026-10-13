@@ -1,5 +1,6 @@
 import {
   Briefcase,
+  Building2,
   LayoutDashboard,
   FileCheck,
   Bookmark,
@@ -29,8 +30,24 @@ export function Sidebar() {
   const status = useAuthStore((state) => state.status);
   const logout = useAuthStore((state) => state.logout);
 
+  // The recruiter board is only reachable by recruiters/admins (backend S-03
+  // supplies the roles through `GET /auth/me`).
+  const canManageCompany = Boolean(
+    user?.roles.some((role) => role === 'recruiter' || role === 'admin')
+  );
+
   const navItems = [
     { id: 'jobs', label: t.navJobs, icon: Briefcase, badge: undefined as string | undefined },
+    ...(canManageCompany
+      ? [
+          {
+            id: 'company',
+            label: t.navCompany,
+            icon: Building2,
+            badge: undefined as string | undefined,
+          },
+        ]
+      : []),
     {
       id: 'applications',
       label: t.navApplications,

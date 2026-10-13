@@ -14,13 +14,14 @@ import {
   ProfileView,
   SettingsView,
 } from './SecondaryViews';
+import { RecruiterView } from '../recruiter/RecruiterView';
 import { AuthScreen } from '../auth/AuthScreen';
 import { CommandPalette } from './CommandPalette';
 import { ApplyModal } from '../jobs/ApplyModal';
 import { ShortcutsModal } from './ShortcutsModal';
 
 /** Views that need a Talenti session (the job feed stays public). */
-const PRIVATE_VIEWS = new Set(['applications', 'profile', 'dashboard']);
+const PRIVATE_VIEWS = new Set(['applications', 'profile', 'dashboard', 'company']);
 
 export function MainLayout() {
   useTheme();
@@ -80,6 +81,8 @@ export function MainLayout() {
         return <JobDashboard />;
       case 'dashboard':
         return <DashboardInsightsView />;
+      case 'company':
+        return <RecruiterView />;
       case 'profile':
         return <ProfileView />;
       case 'settings':

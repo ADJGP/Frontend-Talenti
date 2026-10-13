@@ -113,8 +113,8 @@ por modalidad, 4 `full_time` + 1 `contract` + 1 `internship`, 4 categorías dist
 **Crea tu propia cuenta desde la UI** (§4.1): cualquier correo funciona, p. ej.
 `tester@example.com` con contraseña `E2Epassword1!`.
 
-La UI **no** tiene alta de ofertas (F7 sin UI): para más datos usa el seed (Apéndice A, es
-idempotente) o la API (§7.3).
+La UI **ya** permite alta de ofertas desde el panel de reclutador (**§4.6**); para más
+datos puedes usar el seed (Apéndice A, idempotente) o la API (§7.3).
 
 ---
 
@@ -232,8 +232,9 @@ Vista **Mi Perfil**.
 - El marcador **«Postulado»** en las tarjetas se calcula con las postulaciones de la
   **primera página** de `GET /applications` (**S-12**): con muchas postulaciones, alguna
   tarjeta podría no mostrarlo.
-- Los títulos del tracker se resuelven desde las ofertas ya cargadas (**S-04**); una
-  postulación a una oferta fuera de la página actual muestra un texto de reserva con el id.
+- El tracker usa `job_offer_title`/`company_name` del resumen cuando el backend los envía
+y, si no, cae a las ofertas ya cargadas (**S-04 parcial** en backend: hoy llegan `null`);
+una postulación fuera de la página actual muestra un texto de reserva con el id.
 
 ### 4.5 F6 — Analítica self-service
 
@@ -252,7 +253,32 @@ del token y **no** necesitan rol.
   habilidades declaradas (o sin ofertas con habilidades) el resultado es `[]` y se muestra
   el mensaje de «sin datos suficientes». Es correcto, no un fallo.
 - La analítica de **empresa** y de **plataforma** (funnel, time-to-hire, barómetro, ROI…)
-  no está en esta vista y requiere rol admin (**§6**).
+  no está en esta vista: la de **empresa** vive en el panel de reclutador (**§4.6**); la de
+  **plataforma** requiere rol admin (**§6**).
+
+### 4.6 F7 — Panel de reclutador (empresa)
+
+Vista **Empresa** (solo visible con rol `recruiter`/`admin`; el rol lo aporta
+`GET /api/v1/auth/me`). Consume empresas, ofertas, postulantes y métricas de empresa.
+
+| # | Paso | Resultado esperado |
+|---|---|---|
+| 6.1 | Entrar con una cuenta **sin** rol reclutador/admin | La entrada **Empresa** no aparece en la barra lateral |
+| 6.2 | Abrir **Empresa** sin empresa seleccionada | Formulario para **usar un ID de empresa** o **crear una** |
+| 6.3 | Crear empresa (nombre + slug) | `POST /companies` → `201`; el creador queda propietario y la empresa queda seleccionada |
+| 6.4 | Añadir una oferta (título, descripción, **ID de categoría** UUID) | `POST /job-offers` → `201`; la oferta nace **`draft`** |
+| 6.5 | Pulsar **Publicar** en la oferta en borrador | `PATCH /job-offers/{id}/publish` → `200`; estado `published` |
+| 6.6 | Pulsar **Postulantes** en una oferta | `GET /applications?job_offer_id=` → `200`; lista los candidatos (si los hay) |
+| 6.7 | Pulsar un estado destino en un postulante | `PATCH /applications/{id}/status` → `200` (**S-09**): el embudo avanza |
+| 6.8 | Revisar **Métricas de la empresa** | Vacantes por estado, embudo, time-to-hire, benchmark y **demanda por oferta** (S-18) |
+
+- El panel guarda el **ID de empresa** en `localStorage` (`talenti_recruiter_company`)
+  porque el backend **no expone "mis empresas"** (**S-19**); usa **Cambiar empresa** para
+  cambiar de contexto.
+- Crear una oferta exige un **ID de categoría** (UUID) válido; el formulario pide el UUID
+  directamente (todavía no hay selector de categorías).
+- Las **métricas de empresa** derivan su alcance del propio token (RLS + scope); no hace
+  falta indicar la empresa para consultarlas.
 
 ---
 
@@ -264,8 +290,10 @@ que devuelve la API (verificadas 2026-10-12):
 | Petición | Consumidor | Claves de la respuesta |
 |---|---|---|
 | `POST /api/v1/auth/login\|register\|refresh` | `authApi`, `useAuthStore` | `access_token`, `refresh_token`, `token_type`, `expires_in` |
+| `GET /api/v1/auth/me` | `authApi.me`, `useAuthStore` | `id`, `email`, `full_name`, `is_active`, `roles` |
+| `GET /applications` → `items[]` | `ApplicationsView` | `id`, `job_offer_id`, `job_offer_title`(hoy `null`), `company_id`(hoy `null`), `company_name`(hoy `null`), `candidate_id`, `status`, `created_at` |
 | `GET /job-offers` | `useJobs`, `FilterBar` | `items`, `total`, `page`, `page_size`, `total_pages`, `facets` |
-| `GET /job-offers` → `items[]` | `jobAdapter.summaryToJob` | `id`, `company_id`, `company_name`, `category_id`, `category_name`, `title`, `status`, `location`, `salary_min_cents`, `salary_max_cents`, `salary_currency`, `published_at` |
+| `GET /job-offers` → `items[]` | `jobAdapter.summaryToJob` | `id`, `company_id`, `company_name`, `category_id`, `category_name`, `title`, `status`, `modality`, `employment_type`, `location`, `salary_min_cents`, `salary_max_cents`, `salary_currency`, `published_at` |
 | `GET /job-offers/{id}` | `useJobDetail` | las anteriores **+** `description`, `modality`, `employment_type`, `city_id`, `closes_at` |
 | `facets` | `FilterBar` | `categories[]{id,name,count}`, `work_modes[]{value,count}`, `employment_types[]{value,count}`, `salary_ranges[]{range,count}` |
 | `GET\|POST /profiles`, `PATCH /profiles/me` | `profilesApi`, `ProfileView` | `id`, `user_id`, `headline`, `bio`, `phone`, `location`, `city_id`, `resume_url`, `is_open_to_work`, `experience_years`, `created_at` |
@@ -285,12 +313,14 @@ Compruébalo: los salarios llegan en **centavos** y la UI los divide entre 100;
 
 | ID | Cómo se manifiesta | ¿Bloquea tu prueba? |
 |---|---|---|
-| **S-02** | El listado no muestra modalidad ni tipo de empleo (sí el detalle) | No |
-| **S-03** | No hay `GET /auth/me`: la sesión se construye con los *claims* del token y **no hay roles** en la UI | No |
-| **S-04** | El tracker resuelve títulos desde las ofertas ya cargadas | No |
+| **S-02** | **Resuelto (2026-10-13)**: el listado ya muestra modalidad y tipo de empleo | No |
+| **S-03** | **Resuelto (2026-10-13)**: `GET /auth/me` aporta los roles a la UI | No |
+| **S-04** | **Parcial**: el backend declara `job_offer_title`/`company_name` pero `GET /applications` los devuelve `null`; la UI cae a las ofertas ya cargadas | No |
 | **S-05** | El detalle no tiene bloque de habilidades de la oferta | No |
 | **S-06** | No existe orden por salario | No |
-| **S-09** | Un reclutador **no puede** avanzar el estado de una postulación (`403 not_your_application_error`) | Sí, para F7 |
+| **S-09** | **Resuelto (2026-10-13)**: el reclutador ya avanza el embudo por `PATCH /applications/{id}/status` | No |
+| **S-17** | **Resuelto (2026-10-13)**: `POST /auth/logout` revoca también el access token | No |
+| **S-18** | **Resuelto (2026-10-13)**: `offer-demand-ratio` responde `200` (antes `500`) | No |
 | **S-10** | Los guardados viven en `localStorage`, no en el backend | No |
 | **S-12** | El marcador «ya postulado» solo cubre la primera página | No |
 | **S-14** | Con la BD sin esquema, `/health` da `200` y los datos `500` | Sí, hasta aplicar el esquema |

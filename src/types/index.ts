@@ -94,7 +94,13 @@ export interface ApplicationRecord {
   coverLetter: string | null;
 }
 
+/** Role slugs returned by `GET /api/v1/auth/me` (backend S-03). */
+export type UserRole = 'candidate' | 'recruiter' | 'admin';
+
 export interface SessionUser {
   id: string;
   email: string;
+  fullName: string | null;
+  /** Raw slugs from `/auth/me` (kept as strings: the catalog is backend-owned). */
+  roles: string[];
 }

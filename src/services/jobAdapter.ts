@@ -3,7 +3,10 @@
 // The backend listing (JobOfferSummary) carries a subset of what the previous
 // mock dataset offered. Fields the API cannot provide yet (match score, skills,
 // hiring manager…) are left undefined instead of being faked, and the UI hides
-// those blocks when they are missing (see sugerencias.md S-02/S-05/S-08).
+// those blocks when they are missing (see sugerencias.md S-05/S-08).
+//
+// S-02 (modality/employment_type in the summary) was applied by the backend on
+// 2026-10-12, so those two chips are now mapped from the listing itself.
 
 import type { EmploymentType, Job } from '../types';
 import type { JobOfferDetailDto, JobOfferSummaryDto } from './talentiTypes';
@@ -153,10 +156,15 @@ function baseFields(
 
 /** GET /job-offers item → compact card model (no description body). */
 export function summaryToJob(dto: JobOfferSummaryDto): Job {
-  const job = baseFields(dto, '', dto.category_name ?? '');
-  // The listing summary does not expose modality/employment_type yet (S-02),
-  // so the card chips stay hidden instead of guessing.
-  return job;
+  return {
+    ...baseFields(dto, '', dto.category_name ?? ''),
+    // S-02 applied by the backend (2026-10-12): the summary now carries both
+    // fields, so the card renders the modality/employment chips directly.
+    workplaceType: dto.modality ? WORK_MODALITY_MAP[dto.modality] : undefined,
+    employmentType: dto.employment_type
+      ? EMPLOYMENT_TYPE_MAP[dto.employment_type]
+      : undefined,
+  };
 }
 
 /** GET /job-offers/{id} → full detail model. */
